@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Reclutamiento — Abril/Mayo 2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e334d;
+      --accent: #6366f1;
+      --accent2: #22d3ee;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --radius: 12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 28px;
+    }
+    header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 13px;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 12px;
+      color: var(--accent2);
+      margin-top: 8px;
+    }
+
+    /* KPI CARDS */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .kpi-card.blue::before { background: var(--accent); }
+    .kpi-card.cyan::before { background: var(--accent2); }
+    .kpi-card.green::before { background: var(--success); }
+    .kpi-card.yellow::before { background: var(--warning); }
+    .kpi-card.red::before { background: var(--danger); }
+
+    .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+    .kpi-value { font-size: 30px; font-weight: 800; color: #fff; }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .kpi-trend { font-size: 12px; font-weight: 600; margin-top: 6px; }
+    .trend-bad { color: var(--danger); }
+    .trend-ok { color: var(--success); }
+    .trend-warn { color: var(--warning); }
+
+    /* MAIN GRID */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .grid-1 {
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 16px;
+    }
+    .chart-wrap {
+      position: relative;
+    }
+
+    /* FUNNEL */
+    .funnel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .funnel-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .funnel-label {
+      font-size: 12px;
+      color: var(--muted);
+      width: 210px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .funnel-bar-wrap {
+      flex: 1;
+      height: 28px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .funnel-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .funnel-pct {
+      width: 50px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* INSIGHTS */
+    .insights {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .insight {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 14px 16px;
+      border-left: 3px solid transparent;
+    }
+    .insight.red { border-left-color: var(--danger); }
+    .insight.green { border-left-color: var(--success); }
+    .insight.yellow { border-left-color: var(--warning); }
+    .insight.blue { border-left-color: var(--accent); }
+    .insight-title { font-weight: 700; font-size: 13px; margin-bottom: 5px; }
+    .insight.red .insight-title { color: #fca5a5; }
+    .insight.green .insight-title { color: #6ee7b7; }
+    .insight.yellow .insight-title { color: #fcd34d; }
+    .insight.blue .insight-title { color: #a5b4fc; }
+    .insight p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    .section-sep {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0 20px;
+    }
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Dashboard de Reclutamiento</h1>
+  <p>Funnel HR OS · Canal Nexiu · Generado el 07/05/2026</p>
+  <span class="badge">01 Abr — 07 May 2026 &nbsp;·&nbsp; 5 semanas</span>
+</header>
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+  <div class="kpi-card blue">
+    <div class="kpi-label">Total candidatos</div>
+    <div class="kpi-value">2,373</div>
+    <div class="kpi-sub">en el período</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-label">Tasa de presentación</div>
+    <div class="kpi-value">11.1%</div>
+    <div class="kpi-sub">263 de 2,373 llegaron</div>
+    <div class="kpi-trend trend-bad">↓ 88.9% no-show</div>
+  </div>
+  <div class="kpi-card cyan">
+    <div class="kpi-label">Aprobación entrevista</div>
+    <div class="kpi-value">46.8%</div>
+    <div class="kpi-sub">122 aprobaron entrevista + BG</div>
+    <div class="kpi-trend trend-ok">✓ Buen filtro</div>
+  </div>
+  <div class="kpi-card yellow">
+    <div class="kpi-label">Aprobó prueba de manejo</div>
+    <div class="kpi-value">76.4%</div>
+    <div class="kpi-sub">97 de 127 que la tomaron</div>
+    <div class="kpi-trend trend-ok">✓ Alta conversión</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-label">Contratados</div>
+    <div class="kpi-value">44</div>
+    <div class="kpi-sub">firma de contrato</div>
+    <div class="kpi-trend trend-ok">+26 listos p/ onboarding</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-label">Conversión total</div>
+    <div class="kpi-value">1.85%</div>
+    <div class="kpi-sub">contratados / candidatos</div>
+    <div class="kpi-trend trend-bad">↓ Cuello de botella: no-show</div>
+  </div>
+  <div class="kpi-card yellow">
+    <div class="kpi-label">Declinaron oferta</div>
+    <div class="kpi-value">53</div>
+    <div class="kpi-sub">post-entrevista</div>
+    <div class="kpi-trend trend-warn">⚠ Principal causa: sueldo</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-label">En pipeline activo</div>
+    <div class="kpi-value">37</div>
+    <div class="kpi-sub">listos + contrato pendiente</div>
+    <div class="kpi-trend trend-ok">Potencial de cierre</div>
+  </div>
+</div>
+
+<!-- FUNNEL + TASAS + WEEKLY -->
+<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">1. Funnel de Reclutamiento</div>
+    <div class="funnel" id="funnelChart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">2. Tasas de conversión por semana</div>
+    <div class="chart-wrap">
+      <canvas id="conversionChart" height="280"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">3. Candidatos por semana</div>
+    <div class="chart-wrap">
+      <canvas id="weeklyChart" height="280"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ENTREVISTA + DETALLE NO APROBADOS -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">4. Resultado de entrevistas (263 presentes)</div>
+    <div class="chart-wrap" style="max-width:340px;margin:0 auto">
+      <canvas id="entrevistaChart" height="280"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">5. Detalle de no aprobados en entrevista</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Total</div>
+        <div style="font-size:28px;font-weight:800;color:#fff">74</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Con razón</div>
+        <div style="font-size:28px;font-weight:800;color:var(--warning)">11</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">15%</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Sin documentar</div>
+        <div style="font-size:28px;font-weight:800;color:var(--danger)">63</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">85%</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Razones capturadas (11)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Distancia &gt;2h</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Métricas difíciles</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Actitud</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Edad / Pensionado</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Sueldo no conviene</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Antecedentes / Demandas</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Historial laboral negativo</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:#ef444412;border:1px dashed #ef444440;border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted);font-style:italic">Sin documentar</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">63</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRUEBA DE MANEJO: DONUT + DETALLE -->
+<div class="grid-2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">6. Resultado de prueba de manejo</div>
+    <div class="chart-wrap" style="max-width:340px;margin:0 auto">
+      <canvas id="pruebaDonutChart" height="280"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">7. Detalle de no aprobados en prueba de manejo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">No aprobados</div>
+        <div style="font-size:28px;font-weight:800;color:#fff">30</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Con razón</div>
+        <div style="font-size:28px;font-weight:800;color:var(--warning)">5</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">17%</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Sin documentar</div>
+        <div style="font-size:28px;font-weight:800;color:var(--danger)">25</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">83%</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Razones capturadas (5)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Chocó la unidad</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">No supo estacionarse</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">No pasó (sin detalle)</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:#ef444412;border:1px dashed #ef444440;border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted);font-style:italic">Sin documentar</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">25</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS DRIVER + DETALLE 53 SIN STATUS -->
+<div class="grid-2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">8. Status Driver (263 presentes)</div>
+    <div class="chart-wrap">
+      <canvas id="statusDriverChart" height="220"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">9. Candidatos sin Status Driver asignado</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+      <!-- Grupo 1: crítico -->
+      <div style="background:#ef444418;border:1px solid #ef444450;border-radius:8px;padding:14px">
+        <div style="font-size:10px;color:#fca5a5;text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:8px">🔴 Aprobados sin seguimiento</div>
+        <div style="font-size:28px;font-weight:800;color:#fff;margin-bottom:6px">22</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">Aprobaron entrevista + BG. Nunca se les asignó status.</div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;background:var(--surface);border-radius:5px;padding:6px 10px">
+            <span style="color:#6ee7b7">✓ También aprobaron prueba manejo</span>
+            <strong style="color:#ef4444">12</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;background:var(--surface);border-radius:5px;padding:6px 10px">
+            <span style="color:var(--muted)">No aprobaron prueba manejo</span>
+            <strong style="color:var(--muted)">6</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;background:var(--surface);border-radius:5px;padding:6px 10px">
+            <span style="color:var(--muted)">Sin / declinó prueba</span>
+            <strong style="color:var(--muted)">4</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grupo 2 + 3 + 4 apilados -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:6px">🟡 Pendientes (suma BG = Pendiente)</div>
+          <div style="font-size:24px;font-weight:800;color:#fff">20</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">18 de ellos marcaron <em>Sí</em> a declinar oferta — posibles abandonos no cerrados en sistema.</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:6px">⚪ No aprobados sin status</div>
+          <div style="font-size:24px;font-weight:800;color:#fff">8</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Deberían figurar como Rechazado. Dato incompleto en sistema.</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:6px">⚪ Declinó / Se retiró sin status</div>
+          <div style="font-size:24px;font-weight:800;color:#fff">3</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Candidatos que salieron del proceso sin cierre en sistema.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- CONTRATACIONES POR DÍA -->
+<div class="grid-1 card" style="margin-bottom:16px">
+  <div class="card-title">10. Contrataciones por día (firma de contrato)</div>
+  <div class="chart-wrap">
+    <canvas id="contratacionesChart" height="100"></canvas>
+  </div>
+</div>
+
+<!-- RAZONES DECLIVE -->
+<div class="grid-1 card" style="margin-bottom:16px">
+  <div class="card-title">11. Razones para declinar oferta, todas las etapas (columna J)</div>
+  <div class="chart-wrap" style="max-width:600px">
+    <canvas id="declinaChart" height="140"></canvas>
+  </div>
+</div>
+
+<hr class="section-sep" />
+<div class="section-label">Conclusiones del mes</div>
+
+<div class="insights">
+  <div class="insight red">
+    <div class="insight-title">🔴 Alarma: No-show del 88.9%</div>
+    <p>Solo 1 de cada 9 candidatos captados llega a entrevista. Este es el principal cuello de botella del funnel. Con una tasa de presentación tan baja, el volumen de captación necesario para alcanzar metas es insostenible. Se requiere revisar urgentemente la calidad de leads y el proceso de confirmación.</p>
+  </div>
+  <div class="insight red">
+    <div class="insight-title">🔴 El sueldo aleja candidatos</div>
+    <p>Las principales razones de declive son explícitamente económicas: sueldo bajo, bonos poco atractivos, condiciones no competitivas. 53 candidatos declinaron post-entrevista — son prospectos calificados perdidos por propuesta de valor. Hay que revisar el esquema salarial vs. la competencia del sector.</p>
+  </div>
+  <div class="insight green">
+    <div class="insight-title">🟢 El proceso de selección funciona</div>
+    <p>Del 11% que llega, el 46.8% aprueba la entrevista y el 76.4% pasa la prueba de manejo. Los filtros son efectivos y la calidad de candidatos que avanza es razonablemente alta. El problema no es la selección — es el volumen que llega.</p>
+  </div>
+  <div class="insight green">
+    <div class="insight-title">🟢 Pipeline con potencial de cierre</div>
+    <p>Hay 37 candidatos activos (26 "listos para onboarding" + 11 con "contrato no firmado"). Si se logra activar este pipeline, se podrían sumar hasta ~30 contrataciones adicionales sin generar nuevos leads. Prioridad: seguimiento inmediato.</p>
+  </div>
+
+  <div class="insight yellow">
+    <div class="insight-title">🟡 Onboarding con alta caída</div>
+    <p>De 16 con onboarding asignado, solo 9 llegaron (56.3%). Adicionalmente, 4 registros muestran "No llegó a onboarding". Hay fricción entre el compromiso y la asistencia al onboarding que se debe atacar con recordatorios y reducción del tiempo entre firma y primer día.</p>
+  </div>
+</div>
+
+<script>
+  const COLORS = {
+    indigo: '#6366f1',
+    cyan:   '#22d3ee',
+    green:  '#10b981',
+    yellow: '#f59e0b',
+    red:    '#ef4444',
+    pink:   '#ec4899',
+    purple: '#a855f7',
+    slate:  '#64748b',
+  };
+
+  Chart.register(ChartDataLabels);
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = '#2e334d';
+  Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+  // ── FUNNEL ──────────────────────────────────────────────────────
+  const funnelData = [
+    { label: 'Total candidatos',           value: 2373, color: '#6366f1' },
+    { label: 'No llegó a entrevista',       value: 2110, color: '#ef4444' },
+    { label: 'Llegó a entrevista',          value:  263, color: '#22d3ee' },
+    { label: 'Aprobó entrevista/BG',        value:  122, color: '#10b981' },
+    { label: 'Aprobó prueba de manejo',     value:   97, color: '#10b981' },
+    { label: 'Onboarding asignado',         value:   16, color: '#f59e0b' },
+    { label: 'Docs y DiDi listo',           value:   21, color: '#a855f7' },
+    { label: 'Contratado (firma)',          value:   44, color: '#22d3ee' },
+  ];
+  const maxFunnel = funnelData[0].value;
+  const funnelEl = document.getElementById('funnelChart');
+  funnelData.forEach(row => {
+    const pct = ((row.value / maxFunnel) * 100).toFixed(1);
+    const pctLabel = row.label === 'Total candidatos' ? '100%' : `${((row.value / maxFunnel)*100).toFixed(1)}%`;
+    funnelEl.innerHTML += `
+      <div class="funnel-row">
+        <div class="funnel-label">${row.label}</div>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${pct}%; background:${row.color}; padding-right:0"></div>
+        </div>
+        <div style="width:46px;text-align:right;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${row.value.toLocaleString()}</div>
+        <div class="funnel-pct">${pctLabel}</div>
+      </div>`;
+  });
+
+  const noDatalabels = { datalabels: { display: false } };
+
+  // ── CONVERSION RATES BY WEEK ─────────────────────────────────────
+  const convWeeks = ['S14','S15','S16','S17','S18','S19'];
+  new Chart(document.getElementById('conversionChart'), {
+    type: 'line',
+    data: {
+      labels: convWeeks,
+      datasets: [
+        {
+          label: 'Llegó a entrevista',
+          data: [14.9, 10.3, 9.3, 11.0, 12.2, 12.7],
+          borderColor: COLORS.cyan,
+          backgroundColor: COLORS.cyan + '18',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointBackgroundColor: COLORS.cyan,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'Aprobó entrevista',
+          data: [3.2, 4.0, 4.5, 5.6, 6.9, 5.9],
+          borderColor: COLORS.green,
+          backgroundColor: COLORS.green + '18',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointBackgroundColor: COLORS.green,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'Aprobó prueba manejo',
+          data: [2.1, 3.4, 3.8, 5.2, 5.3, 3.4],
+          borderColor: COLORS.yellow,
+          backgroundColor: COLORS.yellow + '18',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointBackgroundColor: COLORS.yellow,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'Contratado',
+          data: [1.1, 1.3, 2.5, 1.9, 2.8, 0.7],
+          borderColor: COLORS.indigo,
+          backgroundColor: COLORS.indigo + '18',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointBackgroundColor: COLORS.indigo,
+          tension: 0.3,
+          fill: false,
+        },
+      ]
+    },
+    options: {
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 } } },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}%` }
+        },
+        datalabels: { display: false }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          grid: { color: '#2e334d' },
+          ticks: { callback: v => v + '%' },
+          min: 0,
+        }
+      },
+      responsive: true,
+    }
+  });
+
+  // ── WEEKLY ───────────────────────────────────────────────────────
+  new Chart(document.getElementById('weeklyChart'), {
+    type: 'bar',
+    data: {
+      labels: ['S14\n01-02/04','S15\n06-10/04','S16\n13-17/04','S17\n20-24/04','S18\n27-30/04','S19\n04-07/05'],
+      datasets: [
+        {
+          label: 'Candidatos captados',
+          data: [94, 446, 602, 427, 394, 410],
+          backgroundColor: COLORS.indigo + 'bb',
+          borderColor: COLORS.indigo,
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Presentes a entrevista',
+          data: [14, 46, 56, 47, 48, 52],
+          backgroundColor: COLORS.cyan + 'cc',
+          borderColor: COLORS.cyan,
+          borderWidth: 1,
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: true, position: 'bottom', labels: { padding: 12, font: { size: 11 } } }, datalabels: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#2e334d' } }
+      },
+      responsive: true,
+      maintainAspectRatio: true,
+    }
+  });
+
+  // ── ENTREVISTA ───────────────────────────────────────────────────
+  new Chart(document.getElementById('entrevistaChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Aprobado entrev+BG (122)', 'No aprobado (74)', 'Se retiró (24)', 'Sin estado / pendiente (40)', 'Declinó en entrevista (2)', 'BG reprobado (1)'],
+      datasets: [{
+        data: [122, 74, 24, 40, 2, 1],
+        backgroundColor: [COLORS.green, COLORS.red, COLORS.slate, COLORS.yellow, COLORS.purple, COLORS.pink],
+        borderWidth: 2,
+        borderColor: '#1a1d27',
+      }]
+    },
+    options: {
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            afterLabel: ctx => ctx.label.includes('Sin estado') ? '⚠ Dato pendiente de capturar' : ''
+          }
+        },
+        datalabels: {
+          color: '#fff',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value, ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const pct = Math.round(value / total * 100);
+            return pct < 3 ? '' : pct + '%';
+          },
+        }
+      },
+      responsive: true,
+    }
+  });
+
+  // ── STATUS DRIVER ────────────────────────────────────────────────
+  new Chart(document.getElementById('statusDriverChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Rechazado','Contratado','Declinó oferta','Listo p/ onboarding','Sin status asignado','Contrato no firmado','Declinó proceso','En espera','No llegó a onboarding'],
+      datasets: [{
+        data: [84, 44, 33, 26, 53, 11, 4, 4, 4],
+        backgroundColor: [
+          COLORS.red, COLORS.green, COLORS.yellow,
+          COLORS.cyan, '#4b5563',
+          COLORS.purple, COLORS.slate,
+          COLORS.slate, COLORS.pink
+        ],
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { grid: { color: '#2e334d' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      },
+      responsive: true,
+    }
+  });
+
+  // ── MOTIVOS DE RECHAZO ENTREVISTA ───────────────────────────────
+
+  // ── PRUEBA DE MANEJO DONUT ───────────────────────────────────────
+  new Chart(document.getElementById('pruebaDonutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Aprobado (97)', 'No aprobado (30)', 'Sin prueba de manejo (4)', 'Declinó proceso (2)'],
+      datasets: [{
+        data: [97, 30, 4, 2],
+        backgroundColor: [COLORS.green, COLORS.red, COLORS.slate, COLORS.yellow],
+        borderWidth: 2,
+        borderColor: '#1a1d27',
+      }]
+    },
+    options: {
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 } } },
+        datalabels: {
+          color: '#fff',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value, ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const pct = Math.round(value / total * 100);
+            return pct < 3 ? '' : pct + '%';
+          },
+        }
+      },
+    }
+  });
+
+  // ── RAZONES DECLINA ──────────────────────────────────────────────
+  new Chart(document.getElementById('declinaChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Sueldo / Bonos', 'Sin especificar', 'Horarios', 'No le interesa', 'Distancia / Otro'],
+      datasets: [{
+        data: [9, 35, 2, 4, 3],
+        backgroundColor: [COLORS.red, COLORS.slate, COLORS.yellow, COLORS.purple, COLORS.cyan],
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { grid: { color: '#2e334d' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      },
+    }
+  });
+
+
+  // ── CONTRATACIONES POR DÍA ───────────────────────────────────────
+  new Chart(document.getElementById('contratacionesChart'), {
+    type: 'bar',
+    data: {
+      labels: [
+        '07/04','08/04','10/04','13/04','14/04','15/04','16/04','17/04',
+        '20/04','21/04','22/04','23/04','24/04','27/04','28/04','29/04',
+        '30/04','05/05','07/05'
+      ],
+      datasets: [{
+        label: 'Contratos firmados',
+        data: [2,2,1,1,3,2,3,1,1,3,2,1,1,3,4,4,4,4,2],
+        backgroundColor: COLORS.green + 'bb',
+        borderColor: COLORS.green,
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { grid: { color: '#2e334d' }, ticks: { stepSize: 1 } }
+      },
+    }
+  });
+</script>
+</body>
+</html>
