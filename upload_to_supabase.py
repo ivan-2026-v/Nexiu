@@ -35,6 +35,13 @@ def parse_date(val):
             continue
     return None
 
+def parse_hora_llegada(val):
+    """Extract YYYY-MM-DD from 'DD/MM/YYYY, HH:MM a.m./p.m.' (always Mexico time)."""
+    if not val:
+        return None
+    date_part = str(val).split(',')[0].strip()
+    return parse_date(date_part)
+
 def find_header_row(ws):
     """Find the row index that contains 'ID candidato'."""
     for i, row in enumerate(ws.iter_rows(values_only=True)):
@@ -58,6 +65,7 @@ def load_excel(path):
             "candidato":           r.get("Candidato"),
             "canal":               r.get("Canal"),
             "inicio":              parse_date(r.get("Inicio")),
+            "hora_llegada":        parse_hora_llegada(r.get("Hora de llegada")),
             "asistencia":          r.get("Asistencia"),
             "declina_oferta":      r.get("Declina oferta"),
             "razon_declina":       r.get("Razón declina oferta"),
