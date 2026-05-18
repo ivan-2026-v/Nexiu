@@ -870,35 +870,54 @@
 
   // ── DETALLE ASISTENCIA ───────────────────────────────────────────────
   function renderDetalleAsistencia(rows) {
-    // Build day-level data
-    const dayData = {};
+    // Presence date = hora_llegada (Mexico local date) when available,
+    // fallback to inicio when asistencia=Realizada
+    const presentesByDay = {};   // YYYY-MM-DD → { presentes, rows }
+    const scheduledByDay = {};   // YYYY-MM-DD → count  (from inicio)
+
     rows.forEach(r => {
-      if (!r.inicio) return;
-      const d = r.inicio.slice(0, 10);
-      if (!dayData[d]) dayData[d] = { total: 0, presentes: 0, rows: [] };
-      dayData[d].total++;
-      if (r.asistencia === 'Realizada') {
-        dayData[d].presentes++;
-        dayData[d].rows.push(r);
+      if (r.inicio) {
+        const d = r.inicio.slice(0,10);
+        scheduledByDay[d] = (scheduledByDay[d] || 0) + 1;
       }
+      const presDate = r.hora_llegada
+        ? r.hora_llegada.slice(0,10)
+        : (r.asistencia === 'Realizada' ? (r.inicio || '').slice(0,10) : null);
+      if (!presDate) return;
+      if (!presentesByDay[presDate]) presentesByDay[presDate] = { presentes: 0, rows: [] };
+      presentesByDay[presDate].presentes++;
+      presentesByDay[presDate].rows.push(r);
     });
 
-    // Group by ISO week
-    const weekDays = {};
-    Object.keys(dayData).sort().forEach(d => {
+    // Group presence dates by ISO week
+    const weekPresenceDays = {};
+    Object.keys(presentesByDay).sort().forEach(d => {
       const w = isoWeek(d);
-      if (!weekDays[w]) weekDays[w] = [];
-      weekDays[w].push(d);
+      if (!weekPresenceDays[w]) weekPresenceDays[w] = [];
+      weekPresenceDays[w].push(d);
     });
 
     const today = new Date();
     today.setHours(0,0,0,0);
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     const currentWeek = isoWeek(todayStr);
-    const todayDow = (today.getDay() + 6) % 7; // 0=Mon
-    const allWeeks = Object.keys(weekDays).map(Number).sort((a,b)=>a-b);
+    const todayDow = (today.getDay() + 6) % 7;
+    const allWeeks = Object.keys(weekPresenceDays).map(Number).sort((a,b)=>a-b);
 
-    window._weekDayData = { weekDays, dayData, allWeeks, rows };
+    window._weekDayData = { weekPresenceDays, presentesByDay, scheduledByDay, allWeeks, rows };
+
+    // Helper: Mon-Fri date strings for week w
+    function weekDatesMonFri(w) {
+      const sample = weekPresenceDays[w]?.[0];
+      if (!sample) return Array(5).fill(null);
+      const dt = parseDateLocal(sample);
+      const dow = (dt.getDay() + 6) % 7;
+      const mon = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - dow);
+      return Array.from({length: 5}, (_, i) => {
+        const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      });
+    }
 
     // ── WTD CHART ──
     const xLabels = DOW_SHORT.slice(0, Math.max(todayDow + 1, 1));
@@ -906,17 +925,14 @@
     const WK_COLORS = ['#475569','#64748b','#a78bfa','#f59e0b',COLORS.cyan];
 
     const wtdDatasets = weeksForChart.map((w, i) => {
-      const days = (weekDays[w] || []).sort();
+      const wDates = weekDatesMonFri(w);
       let cum = 0;
       const data = [];
       for (let dow = 0; dow < xLabels.length; dow++) {
-        if (w === currentWeek && dow > todayDow) {
-          data.push(null);
-        } else {
-          const dayDate = days.find(d => DOW_ORDER(d) === dow);
-          cum += dayDate ? dayData[dayDate].presentes : 0;
-          data.push(cum);
-        }
+        if (w === currentWeek && dow > todayDow) { data.push(null); continue; }
+        const d = wDates[dow];
+        cum += (d && presentesByDay[d]) ? presentesByDay[d].presentes : 0;
+        data.push(cum);
       }
       const isCurr = w === currentWeek;
       return {
@@ -941,96 +957,96 @@
           datalabels: { display: false },
           tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} presentes acum.` } }
         },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: '#2e334d' }, min: 0, ticks: { stepSize: 5 } }
-        }
+        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},min:0,ticks:{stepSize:5}} }
       }
     });
 
-    // ── DAY-BY-DAY TABLE ──
+    // ── WEEK TABLE — always Mon → Fri ──
     const tableEl = document.getElementById('weekly-day-table');
     let html = '';
     allWeeks.forEach(w => {
-      const days = (weekDays[w] || []).sort();
-      const wTotal = days.reduce((s,d) => s + dayData[d].total, 0);
-      const wPres  = days.reduce((s,d) => s + dayData[d].presentes, 0);
-      const wRate  = wTotal ? Math.round(wPres / wTotal * 100) : 0;
-      const d0 = days[0], dN = days[days.length-1];
+      const wDates = weekDatesMonFri(w);
+      const wPres  = wDates.reduce((s,d) => s + (d && presentesByDay[d] ? presentesByDay[d].presentes : 0), 0);
+      const wSched = wDates.reduce((s,d) => s + (d ? (scheduledByDay[d] || 0) : 0), 0);
+      const wRate  = wSched ? Math.round(wPres / wSched * 100) : 0;
       html += `<div style="margin-bottom:20px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent2);margin-bottom:8px">
-          S${w} &nbsp;·&nbsp; ${d0 ? d0.slice(5).replace('-','/') : ''} – ${dN ? dN.slice(5).replace('-','/') : ''}
+          S${w} &nbsp;·&nbsp; ${wDates[0]?.slice(5).replace('-','/')} – ${wDates[4]?.slice(5).replace('-','/')}
         </div>
         <table class="week-table">
           <thead><tr><th>Día</th><th>Fecha</th><th>Prog.</th><th>Pres.</th><th>No-show</th><th>Tasa</th></tr></thead>
           <tbody>`;
-      days.forEach(d => {
-        const dd = dayData[d];
-        const rate = dd.total ? Math.round(dd.presentes / dd.total * 100) : 0;
-        const cls = rate >= 20 ? 'rate-good' : rate >= 10 ? 'rate-warn' : 'rate-bad';
-        const dow = DOW_SHORT[(parseDateLocal(d).getDay())];
+      wDates.forEach((d, i) => {
+        const pres  = (d && presentesByDay[d]) ? presentesByDay[d].presentes : 0;
+        const sched = d ? (scheduledByDay[d] || 0) : 0;
+        const rate  = sched ? Math.round(pres / sched * 100) : null;
+        const cls   = rate === null ? '' : rate >= 20 ? 'rate-good' : rate >= 10 ? 'rate-warn' : 'rate-bad';
         html += `<tr>
-          <td>${dow}</td>
-          <td>${d.slice(5).replace('-','/')}</td>
-          <td style="color:var(--muted)">${dd.total}</td>
-          <td style="color:var(--accent2);font-weight:700">${dd.presentes}</td>
-          <td style="color:var(--danger)">${dd.total - dd.presentes}</td>
-          <td class="${cls}">${rate}%</td>
+          <td>${DOW_SHORT[i]}</td>
+          <td>${d ? d.slice(5).replace('-','/') : '—'}</td>
+          <td style="color:var(--muted)">${sched || '—'}</td>
+          <td style="color:var(--accent2);font-weight:700">${pres || (rate !== null ? 0 : '—')}</td>
+          <td style="color:${sched-pres>0?'var(--danger)':'var(--muted)'}">${sched ? sched-pres : '—'}</td>
+          <td class="${cls}">${rate !== null ? rate+'%' : '—'}</td>
         </tr>`;
       });
       html += `</tbody>
           <tfoot><tr class="sum-row">
             <td colspan="2">Total semana</td>
-            <td>${wTotal}</td><td>${wPres}</td>
-            <td>${wTotal - wPres}</td>
-            <td>${wRate}%</td>
+            <td>${wSched}</td><td>${wPres}</td><td>${wSched-wPres}</td><td>${wRate}%</td>
           </tr></tfoot>
         </table></div>`;
     });
     tableEl.innerHTML = html;
 
-    // ── DAY COMPARISON ──
+    // ── DAY COMPARISON — pivot: filas=día, columnas=semana ──
     const compEl = document.getElementById('day-comparison');
-    let compHtml = '';
-    // For each day of week that has passed (across any week)
-    const dowsPresent = [...new Set(
-      Object.keys(dayData)
-        .filter(d => parseDateLocal(d) <= today)
-        .map(d => DOW_ORDER(d))
-    )].sort((a,b)=>a-b);
-
-    dowsPresent.forEach(dow => {
-      const datesForDow = Object.keys(dayData)
-        .filter(d => DOW_ORDER(d) === dow && parseDateLocal(d) <= today)
-        .sort().slice(-5);
-      compHtml += `<div style="margin-bottom:18px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">${DOW_FULL[dow]}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">`;
-      datesForDow.forEach(d => {
-        const dd = dayData[d];
-        const rate = dd.total ? Math.round(dd.presentes / dd.total * 100) : 0;
-        const w = isoWeek(d);
+    const compWeeks = allWeeks.slice(-6);
+    let compHtml = `<div style="overflow-x:auto">
+      <table class="week-table">
+        <thead><tr>
+          <th style="text-align:left">Día</th>
+          ${compWeeks.map(w => `<th style="text-align:center">S${w}</th>`).join('')}
+        </tr></thead>
+        <tbody>`;
+    for (let dow = 0; dow < 5; dow++) {
+      compHtml += `<tr><td style="font-weight:600">${DOW_FULL[dow]}</td>`;
+      compWeeks.forEach(w => {
+        const d = weekDatesMonFri(w)[dow];
+        const pres  = (d && presentesByDay[d]) ? presentesByDay[d].presentes : null;
+        const sched = d ? (scheduledByDay[d] || 0) : 0;
         const isCurr = w === currentWeek;
-        const rateColor = rate >= 20 ? 'var(--success)' : rate >= 10 ? 'var(--warning)' : 'var(--danger)';
-        compHtml += `<div style="background:var(--surface2);border:1px solid ${isCurr?'var(--accent2)':'var(--border)'};border-radius:8px;padding:10px 14px;min-width:85px">
-          <div style="font-size:10px;color:${isCurr?'var(--accent2)':'var(--muted)'};font-weight:700;margin-bottom:4px">S${w} &nbsp;${d.slice(5).replace('-','/')}</div>
-          <div style="font-size:22px;font-weight:800;color:#fff">${dd.presentes}</div>
-          <div style="font-size:10px;color:${rateColor};margin-top:2px">${rate}% de ${dd.total}</div>
-        </div>`;
+        if (pres === null) {
+          compHtml += `<td style="text-align:center;color:var(--muted)">—</td>`;
+        } else {
+          const rate = sched ? Math.round(pres/sched*100) : null;
+          const rc   = rate !== null ? (rate>=20?'var(--success)':rate>=10?'var(--warning)':'var(--danger)') : 'var(--muted)';
+          const rStr = rate !== null ? `<br/><span style="font-size:10px;color:${rc}">${rate}%</span>` : '';
+          compHtml += `<td style="text-align:center;${isCurr?'background:var(--surface2);border-radius:4px':''}">
+            <strong style="color:${isCurr?'var(--accent2)':'#fff'}">${pres}</strong>${rStr}
+          </td>`;
+        }
       });
-      compHtml += `</div></div>`;
+      compHtml += `</tr>`;
+    }
+    compHtml += `</tbody><tfoot><tr class="sum-row"><td>Total</td>`;
+    compWeeks.forEach(w => {
+      const tot = weekDatesMonFri(w).reduce((s,d) => s + (d && presentesByDay[d] ? presentesByDay[d].presentes : 0), 0);
+      compHtml += `<td style="text-align:center">${tot}</td>`;
     });
-    compEl.innerHTML = compHtml || '<p style="color:var(--muted);font-size:13px">Sin datos.</p>';
+    compHtml += `</tr></tfoot></table></div>`;
+    compEl.innerHTML = compHtml;
 
     // ── REAGENDADOS ──
     document.getElementById('reagendados-section').innerHTML = `
       <div style="background:var(--surface2);border-radius:8px;padding:16px;display:flex;align-items:flex-start;gap:14px">
         <div style="font-size:22px;flex-shrink:0">⚠️</div>
         <div>
-          <div style="font-weight:700;color:var(--warning);margin-bottom:6px">Campo pendiente de migrar</div>
+          <div style="font-weight:700;color:var(--warning);margin-bottom:6px">Pendiente: columna hora_llegada en Supabase</div>
           <div style="font-size:13px;color:var(--muted);line-height:1.7">
-            El Excel contiene la columna <strong style="color:var(--text)">"Reagenda entrevista"</strong> pero no fue incluida en la tabla Supabase ni en el script de carga.<br/>
-            Para habilitar este análisis: (1) agrega la columna <code>reagenda_entrevista text</code> en Supabase SQL, (2) el script ya mapea la columna automáticamente en la próxima carga.
+            Ejecuta en Supabase SQL Editor:<br/>
+            <code style="color:var(--accent2)">ALTER TABLE funnel ADD COLUMN IF NOT EXISTS hora_llegada text;</code><br/>
+            Luego vuelve a correr el script de carga. El análisis de reagendados quedará habilitado automáticamente.
           </div>
         </div>
       </div>`;
@@ -1044,14 +1060,14 @@
   }
 
   function renderBackupList(week) {
-    const { weekDays, dayData } = window._weekDayData;
-    const days = weekDays[week] || [];
-    const presentes = days.flatMap(d => dayData[d].rows)
-      .sort((a,b) => (a.inicio||'').localeCompare(b.inicio||''));
+    const { weekPresenceDays, presentesByDay } = window._weekDayData;
+    const days = weekPresenceDays[week] || [];
+    const presentes = days.flatMap(d => (presentesByDay[d]?.rows || []))
+      .sort((a,b) => ((a.hora_llegada||a.inicio||'')).localeCompare((b.hora_llegada||b.inicio||'')));
     const tbody = document.getElementById('backup-body');
     document.getElementById('backup-count').textContent = `${presentes.length} presentes en semana ${week}`;
     tbody.innerHTML = presentes.length ? presentes.map((r, i) => {
-      const fecha = r.inicio ? r.inicio.slice(5).replace('-','/') : '—';
+      const fecha = (r.hora_llegada || r.inicio || '').slice(5).replace('-','/');
       const est = r.estado_entrevista || '—';
       const estColor = est === 'Aprobado' ? 'var(--success)' : est === 'No aprobado' ? 'var(--danger)' : 'var(--muted)';
       return `<tr>
