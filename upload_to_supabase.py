@@ -35,13 +35,21 @@ def parse_date(val):
             continue
     return None
 
+def find_header_row(ws):
+    """Find the row index that contains 'ID candidato'."""
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if any(str(v) == "ID candidato" for v in row if v):
+            return i
+    raise ValueError("No se encontró la fila de encabezados con 'ID candidato'")
+
 def load_excel(path):
     wb = openpyxl.load_workbook(path, data_only=True)
     ws = wb["Funnel"]
     rows = list(ws.iter_rows(values_only=True))
-    headers = [str(h) if h else f"col_{i}" for i, h in enumerate(rows[0])]
+    hdr_idx = find_header_row(ws)
+    headers = [str(h) if h else f"col_{i}" for i, h in enumerate(rows[hdr_idx])]
     records = []
-    for row in rows[1:]:
+    for row in rows[hdr_idx + 1:]:
         if all(v is None for v in row):
             continue
         r = dict(zip(headers, row))
@@ -59,7 +67,7 @@ def load_excel(path):
             "background_check":    r.get("Background check"),
             "suma_bg":             r.get("La suma de entrevista y background"),
             "prueba_manejo":       r.get("Prueba de manejo"),
-            "razon_no_aprobado":   r.get("Razón de no aprobado"),
+            "razon_no_aprobado":   r.get("Razón prueba de manejo") or r.get("Razón de no aprobado"),
             "onboarding_dia":      r.get("Día asignado onboarding"),
             "asistencia_onboarding": r.get("Asistencia de onboarding"),
             "docs_y_didi":         r.get("Docs y DiDi"),
@@ -68,7 +76,14 @@ def load_excel(path):
             "ultima_modificacion": str(r.get("Última modificación") or ""),
             "periodo":             PERIODO,
         })
-    return records
+    # Deduplicate by id_candidato, keeping last occurrence
+    seen = {}
+    for r in records:
+        seen[r["id_candidato"]] = r
+    deduped = list(seen.values())
+    if len(deduped) < len(records):
+        print(f"  (deduplicados: {len(records) - len(deduped)} filas eliminadas)")
+    return deduped
 
 # ── UPLOAD ────────────────────────────────────────────────────────────────────
 def upload(records, batch=200):
