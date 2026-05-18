@@ -649,8 +649,8 @@
 
   function isoWeek(dateStr) {
     if (!dateStr) return null;
-    const d = new Date(dateStr);
-    d.setHours(0,0,0,0);
+    const [y, mo, dy] = dateStr.slice(0,10).split('-').map(Number);
+    const d = new Date(y, mo - 1, dy); // local date, no UTC shift
     d.setDate(d.getDate() + 3 - (d.getDay()+6)%7);
     const w1 = new Date(d.getFullYear(), 0, 4);
     return 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay()+6)%7) / 7);
