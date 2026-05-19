@@ -993,24 +993,18 @@
               formatter: v => v != null ? v + '%' : ''
             },
           },
-          // Goal presentes (left axis) — single point on current week
+          // Goal presentes (left axis) — rendered as dashed bar via inline plugin
           {
             label: `Meta (${goalPresentes} pres.)`,
             data: weeksForChart.map((_, i) => i === currIdx ? goalPresentes : null),
-            type: 'line',
+            type: 'bar',
             yAxisID: 'y',
-            borderColor: '#22c55e',
             backgroundColor: 'transparent',
+            borderColor: 'transparent',
             borderWidth: 0,
-            pointRadius: ctx => ctx.dataIndex === currIdx ? 8 : 0,
-            pointStyle: 'crossRot',
-            pointBackgroundColor: '#22c55e',
-            pointBorderColor: '#22c55e',
-            pointBorderWidth: 2.5,
-            spanGaps: false,
             datalabels: {
               display: ctx => ctx.dataIndex === currIdx,
-              anchor: 'end', align: 'right',
+              anchor: 'end', align: 'top',
               color: '#22c55e', font: { size: 11, weight: '700' },
               formatter: v => v != null ? `${v} (20%)` : ''
             },
@@ -1051,7 +1045,29 @@
             ticks: { color: '#f59e0b', callback: v => v + '%' }
           }
         }
-      }
+      },
+      plugins: [{
+        id: 'goalDashedBar',
+        afterDatasetsDraw(chart) {
+          const meta = chart.getDatasetMeta(2); // goal bar dataset
+          if (!meta || !meta.data) return;
+          meta.data.forEach(bar => {
+            if (!bar || bar.hidden) return;
+            const props = bar.getProps(['x','y','width','base'], true);
+            const { x, y, width, base } = props;
+            if (base - y === 0) return;
+            const c = chart.ctx;
+            c.save();
+            c.fillStyle = 'rgba(34,197,94,0.08)';
+            c.fillRect(x - width / 2, y, width, base - y);
+            c.setLineDash([5, 4]);
+            c.strokeStyle = '#22c55e';
+            c.lineWidth = 2;
+            c.strokeRect(x - width / 2, y, width, base - y);
+            c.restore();
+          });
+        }
+      }]
     });
 
     // ── WEEK TABLE — always Mon → Fri ──
