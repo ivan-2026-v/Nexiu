@@ -993,22 +993,6 @@
               formatter: v => v != null ? v + '%' : ''
             },
           },
-          // Goal presentes (left axis) — rendered as dashed bar via inline plugin
-          {
-            label: `Meta (${goalPresentes} pres.)`,
-            data: weeksForChart.map((_, i) => i === currIdx ? goalPresentes : null),
-            type: 'bar',
-            yAxisID: 'y',
-            backgroundColor: 'transparent',
-            borderColor: 'transparent',
-            borderWidth: 0,
-            datalabels: {
-              display: ctx => ctx.dataIndex === currIdx,
-              anchor: 'end', align: 'top',
-              color: '#22c55e', font: { size: 11, weight: '700' },
-              formatter: v => v != null ? `${v} (20%)` : ''
-            },
-          },
         ]
       },
       options: {
@@ -1016,7 +1000,7 @@
           legend: {
             display: true, position: 'bottom',
             labels: { padding: 12, font: { size: 11 }, color: '#94a3b8',
-              filter: item => item.datasetIndex < 3 }
+              filter: item => item.datasetIndex < 2 }
           },
           datalabels: {
             display: ctx => ctx.datasetIndex === 0,
@@ -1049,23 +1033,27 @@
       plugins: [{
         id: 'goalDashedBar',
         afterDatasetsDraw(chart) {
-          const meta = chart.getDatasetMeta(2); // goal bar dataset
-          if (!meta || !meta.data) return;
-          meta.data.forEach(bar => {
-            if (!bar || bar.hidden) return;
-            const props = bar.getProps(['x','y','width','base'], true);
-            const { x, y, width, base } = props;
-            if (base - y === 0) return;
-            const c = chart.ctx;
-            c.save();
-            c.fillStyle = 'rgba(34,197,94,0.08)';
-            c.fillRect(x - width / 2, y, width, base - y);
-            c.setLineDash([5, 4]);
-            c.strokeStyle = '#22c55e';
-            c.lineWidth = 2;
-            c.strokeRect(x - width / 2, y, width, base - y);
-            c.restore();
-          });
+          if (currIdx < 0) return;
+          const meta0 = chart.getDatasetMeta(0);
+          if (!meta0?.data?.[currIdx]) return;
+          const bar = meta0.data[currIdx];
+          const { x, width, base } = bar.getProps(['x','width','base'], true);
+          const goalY = chart.scales['y'].getPixelForValue(goalPresentes);
+          if (goalY >= base) return;
+          const c = chart.ctx;
+          c.save();
+          c.fillStyle = 'rgba(34,197,94,0.08)';
+          c.fillRect(x - width / 2, goalY, width, base - goalY);
+          c.setLineDash([5, 4]);
+          c.strokeStyle = '#22c55e';
+          c.lineWidth = 2;
+          c.strokeRect(x - width / 2, goalY, width, base - goalY);
+          c.font = 'bold 11px sans-serif';
+          c.fillStyle = '#22c55e';
+          c.setLineDash([]);
+          c.textAlign = 'center';
+          c.fillText(`${goalPresentes} (20%)`, x, goalY - 6);
+          c.restore();
         }
       }]
     });
