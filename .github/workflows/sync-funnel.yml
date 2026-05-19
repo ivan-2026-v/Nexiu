@@ -33,4 +33,4 @@ jobs:
         run: |
           PERIODO="2026-04-01_$(date -u +%Y-%m-%d)"
           echo "Periodo: $PERIODO"
-          python3 LAFA/upload_to_supabase.py funnel.xlsx --periodo "$PERIODO"
+          python3 upload_to_supabase.py funnel.xlsx --periodo "$PERIODO"
