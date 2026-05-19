@@ -748,9 +748,13 @@
     rows.forEach(r => {
       const w = isoWeek(r.inicio);
       if (!w) return;
-      if (!weekOrder[w]) weekOrder[w] = { total: 0, presentes: 0 };
-      weekOrder[w].total++;
-      if (r.asistencia === 'Realizada') weekOrder[w].presentes++;
+      if (!weekOrder[w]) weekOrder[w] = { total: 0, presentes: 0, aprobEnt: 0, aprobPM: 0, contrat: 0 };
+      const wk = weekOrder[w];
+      wk.total++;
+      if (r.asistencia    === 'Realizada') wk.presentes++;
+      if (r.suma_bg       === 'Aprobado')  wk.aprobEnt++;
+      if (r.prueba_manejo === 'Aprobado')  wk.aprobPM++;
+      if (r.firma_contrato)                wk.contrat++;
     });
     const sortedWeeks = Object.keys(weekOrder).map(Number).sort((a,b)=>a-b);
     const weekLabels = sortedWeeks.map(w => `S${w}`);
@@ -768,11 +772,7 @@
 
     // ── CONVERSION BY WEEK ───────────────────────────────────────────
     const convData = sortedWeeks.map(w => {
-      const t = weekOrder[w].total;
-      const p = weekOrder[w].presentes;
-      const aprobEnt = rows.filter(r => isoWeek(r.inicio)===w && r.suma_bg==='Aprobado').length;
-      const aprobPM  = rows.filter(r => isoWeek(r.inicio)===w && r.prueba_manejo==='Aprobado').length;
-      const contrat  = rows.filter(r => isoWeek(r.inicio)===w && r.firma_contrato).length;
+      const { total: t, presentes: p, aprobEnt, aprobPM, contrat } = weekOrder[w];
       return { llego: +pct1(p,t), ent: +pct1(aprobEnt,t), pm: +pct1(aprobPM,t), cont: +pct1(contrat,t) };
     });
     makeChart('conversionChart', {
@@ -864,6 +864,7 @@
     const [y,m,d] = s.split('-').map(Number);
     return new Date(y, m-1, d);
   }
+  const fmtDate   = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const DOW_ORDER = d => (parseDateLocal(d).getDay() + 6) % 7; // 0=Mon
   const DOW_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   const DOW_FULL  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
@@ -899,24 +900,26 @@
 
     const today = new Date();
     today.setHours(0,0,0,0);
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const todayStr    = fmtDate(today);
     const currentWeek = isoWeek(todayStr);
     const todayDow = (today.getDay() + 6) % 7;
     const allWeeks = Object.keys(weekPresenceDays).map(Number).sort((a,b)=>a-b);
 
     window._weekDayData = { weekPresenceDays, presentesByDay, scheduledByDay, allWeeks, rows };
 
-    // Helper: Mon-Fri date strings for week w
+    // Helper: Mon-Fri date strings for week w (memoized per renderDetalleAsistencia call)
+    const wDatesCache = {};
     function weekDatesMonFri(w) {
+      if (wDatesCache[w]) return wDatesCache[w];
       const sample = weekPresenceDays[w]?.[0];
-      if (!sample) return Array(5).fill(null);
-      const dt = parseDateLocal(sample);
+      if (!sample) return (wDatesCache[w] = Array(5).fill(null));
+      const dt  = parseDateLocal(sample);
       const dow = (dt.getDay() + 6) % 7;
       const mon = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - dow);
-      return Array.from({length: 5}, (_, i) => {
+      return (wDatesCache[w] = Array.from({length: 5}, (_, i) => {
         const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      });
+        return fmtDate(d);
+      }));
     }
 
     // ── WTD BAR CHART — X: semanas, Y: presentes acum. hasta día actual ──
@@ -930,36 +933,27 @@
       w === currentWeek ? COLORS.cyan : '#6366f1'
     );
 
-    const wtdBarData = weeksForChart.map(w => {
+    // Single pass: presentes + scheduled WTD for each week
+    const wtdStats = weeksForChart.map(w => {
       const wDates = weekDatesMonFri(w);
-      let cum = 0;
+      let pres = 0, sched = 0;
       for (let dow = 0; dow <= todayDow; dow++) {
         const d = wDates[dow];
-        if (d && presentesByDay[d]) cum += presentesByDay[d].presentes;
+        if (d) {
+          if (presentesByDay[d]) pres += presentesByDay[d].presentes;
+          sched += scheduledByDay[d] || 0;
+        }
       }
-      return cum;
+      return { pres, sched };
     });
-
-    const wtdSchedData = weeksForChart.map(w => {
-      const wDates = weekDatesMonFri(w);
-      let sched = 0;
-      for (let dow = 0; dow <= todayDow; dow++) {
-        const d = wDates[dow];
-        if (d) sched += scheduledByDay[d] || 0;
-      }
-      return sched;
-    });
-
-    const wtdRateData = weeksForChart.map((w, i) => {
-      const sched = wtdSchedData[i];
-      return sched ? Math.round(wtdBarData[i] / sched * 100) : null;
-    });
+    const wtdBarData   = wtdStats.map(s => s.pres);
+    const wtdSchedData = wtdStats.map(s => s.sched);
+    const wtdRateData  = wtdStats.map(s => s.sched ? Math.round(s.pres / s.sched * 100) : null);
 
     // Goal = max scheduled WTD × 20%
-    const maxSchedWTD = Math.max(...wtdSchedData.filter(Boolean));
+    const maxSchedWTD   = Math.max(...wtdSchedData.filter(Boolean));
     const goalPresentes = Math.round(maxSchedWTD * 0.20);
-    const goalRate = 20; // fixed target %
-    const currIdx = weeksForChart.indexOf(currentWeek);
+    const currIdx       = weeksForChart.indexOf(currentWeek);
 
     makeChart('wtdChart', {
       type: 'bar',
@@ -1063,9 +1057,14 @@
     let html = '';
     allWeeks.forEach(w => {
       const wDates = weekDatesMonFri(w);
-      const wPres  = wDates.reduce((s,d) => s + (d && presentesByDay[d] ? presentesByDay[d].presentes : 0), 0);
-      const wSched = wDates.reduce((s,d) => s + (d ? (scheduledByDay[d] || 0) : 0), 0);
-      const wRate  = wSched ? Math.round(wPres / wSched * 100) : 0;
+      let wPres = 0, wSched = 0;
+      for (const d of wDates) {
+        if (d) {
+          if (presentesByDay[d]) wPres += presentesByDay[d].presentes;
+          wSched += scheduledByDay[d] || 0;
+        }
+      }
+      const wRate = wSched ? Math.round(wPres / wSched * 100) : 0;
       html += `<div style="margin-bottom:20px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent2);margin-bottom:8px">
           S${w} &nbsp;·&nbsp; ${wDates[0]?.slice(5).replace('-','/')} – ${wDates[4]?.slice(5).replace('-','/')}
