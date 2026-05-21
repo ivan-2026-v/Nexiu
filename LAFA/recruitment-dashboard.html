@@ -902,7 +902,12 @@
     today.setHours(0,0,0,0);
     const todayStr    = fmtDate(today);
     const currentWeek = isoWeek(todayStr);
-    const todayDow = (today.getDay() + 6) % 7;
+
+    // Cutoff 3pm Mexico City — data is complete for a day only after 3pm
+    const nowMX    = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Mexico_City'}));
+    const todayDow = (today.getDay() + 6) % 7;           // 0=Mon … 4=Fri
+    // Before 3pm: exclude today (not yet complete); after 3pm: include today
+    const effectiveDow = nowMX.getHours() >= 15 ? todayDow : todayDow - 1;
     const allWeeks = Object.keys(weekPresenceDays).map(Number).sort((a,b)=>a-b);
 
     window._weekDayData = { weekPresenceDays, presentesByDay, scheduledByDay, allWeeks, rows };
@@ -925,7 +930,9 @@
     // ── WTD BAR CHART — X: semanas, Y: presentes acum. hasta día actual ──
     // todayDow = 0(Lun)…4(Vie); muestra los mismos días en todas las semanas
     const weeksForChart = allWeeks;
-    const dowLabel = DOW_SHORT.slice(0, todayDow + 1).join(' + ');
+    const dowLabel = effectiveDow < 0
+      ? 'Sin días completos'
+      : DOW_SHORT.slice(0, effectiveDow + 1).join(' + ');
     const BAR_COLORS = weeksForChart.map(w =>
       w === currentWeek ? COLORS.cyan : 'rgba(99,102,241,0.55)'
     );
@@ -937,7 +944,7 @@
     const wtdStats = weeksForChart.map(w => {
       const wDates = weekDatesMonFri(w);
       let pres = 0, sched = 0;
-      for (let dow = 0; dow <= todayDow; dow++) {
+      for (let dow = 0; dow <= effectiveDow; dow++) {
         const d = wDates[dow];
         if (d) {
           if (presentesByDay[d]) pres += presentesByDay[d].presentes;
