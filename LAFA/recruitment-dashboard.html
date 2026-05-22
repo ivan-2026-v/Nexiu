@@ -994,6 +994,16 @@
 
     const active = rows.filter(isActivePipeline);
 
+    // weekMapAll: all active candidates (used for pivot table + detail list)
+    const weekMapAll = {};
+    active.forEach(r => {
+      const w = isoWeek((r.inicio || '').slice(0, 10));
+      if (!w) return;
+      if (!weekMapAll[w]) weekMapAll[w] = {};
+      const s = getPipelineStage(r);
+      weekMapAll[w][s] = (weekMapAll[w][s] || 0) + 1;
+    });
+
     // Chart: group by inicio week (≤ cutoff for current partial week)
     const weekMap = {};
     active.forEach(r => {
@@ -1034,14 +1044,14 @@
       },
     });
 
-    // Pivot table: rows=stages, cols=weeks
-    const pivotWeeks = Object.keys(weekMap).map(Number).sort((a, b) => a - b);
+    // Pivot table: rows=stages, cols=weeks (uses all active, no cutoff)
+    const pivotWeeks = Object.keys(weekMapAll).map(Number).sort((a, b) => a - b);
     const th = (t, extra='') => `<th style="padding:7px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;${extra}">${t}</th>`;
     const td = (v, color='', extra='') => `<td style="padding:7px 12px;text-align:center;border-bottom:1px solid var(--border);border-right:1px solid var(--border);${color ? `color:${color};font-weight:700;` : 'color:var(--muted);'}${extra}">${v || '—'}</td>`;
     const pivotRows = STAGES.map((stage, si) => {
-      const rowTotal = pivotWeeks.reduce((s, w) => s + (weekMap[w][stage] || 0), 0);
+      const rowTotal = pivotWeeks.reduce((s, w) => s + (weekMapAll[w][stage] || 0), 0);
       const cells = pivotWeeks.map(w => {
-        const v = weekMap[w][stage] || 0;
+        const v = weekMapAll[w][stage] || 0;
         return td(v || '', v ? STAGE_COLORS[si] : '');
       }).join('');
       return `<tr>
@@ -1052,7 +1062,7 @@
         ${td(`<strong>${rowTotal}</strong>`, rowTotal ? '#e2e8f0' : '', 'background:var(--surface2)')}
       </tr>`;
     });
-    const colTotals = pivotWeeks.map(w => STAGES.reduce((s, stage) => s + (weekMap[w][stage] || 0), 0));
+    const colTotals = pivotWeeks.map(w => STAGES.reduce((s, stage) => s + (weekMapAll[w][stage] || 0), 0));
     const grandTotal = colTotals.reduce((a, b) => a + b, 0);
     document.getElementById('pipeline-pivot').innerHTML = `
       <table style="width:100%;border-collapse:collapse;font-size:13px">
