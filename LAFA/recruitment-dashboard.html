@@ -644,14 +644,15 @@
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div id="tab-pipeline" class="tab-content">
 
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-title">Evolución del pipeline activo · corte viernes 3 pm</div>
-    <div class="chart-wrap" style="height:260px"><canvas id="pipelineEvolChart"></canvas></div>
-  </div>
-
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-title">Candidatos activos por etapa y semana</div>
-    <div style="overflow-x:auto" id="pipeline-pivot"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Evolución del pipeline activo · corte viernes 3 pm</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="pipelineEvolChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Candidatos activos por etapa y semana</div>
+      <div style="overflow-x:auto" id="pipeline-pivot"></div>
+    </div>
   </div>
 
   <div class="card">
