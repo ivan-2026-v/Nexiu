@@ -286,6 +286,7 @@
 <div class="tab-nav">
   <button class="tab-btn active" onclick="switchTab('executive',this)">Executive</button>
   <button class="tab-btn" onclick="switchTab('detalle',this)">Detalle Asistencia</button>
+  <button class="tab-btn" onclick="switchTab('pipeline',this)">Pipeline Activo</button>
 </div>
 
 <div id="tab-executive" class="tab-content active">
@@ -638,6 +639,40 @@
 
 </div><!-- /tab-detalle -->
 
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: PIPELINE ACTIVO                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-pipeline" class="tab-content">
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Evolución del pipeline activo · corte viernes 3 pm</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="pipelineEvolChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0">Candidatos en pipeline activo &mdash; <span id="pipeline-count">0</span></div>
+      <button onclick="exportPipeline()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.02em">⬇ Exportar CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em">
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">Candidato</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Sem.</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Inicio</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Etapa actual</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Canal</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">Entrevistador/a</th>
+          </tr>
+        </thead>
+        <tbody id="pipeline-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /tab-pipeline -->
+
 <script>
   // ── CONFIG ──────────────────────────────────────────────────────────
   const SUPABASE_URL = 'https://ctbkipgraypohrdeoggv.supabase.co';
@@ -904,7 +939,148 @@
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
-    if (name === 'detalle' && window._allRows) renderDetalleAsistencia(window._allRows);
+    if (name === 'detalle'  && window._allRows) renderDetalleAsistencia(window._allRows);
+    if (name === 'pipeline' && window._allRows) renderPipeline(window._allRows);
+  }
+
+  // ── PIPELINE ACTIVO ──────────────────────────────────────────────────
+  const STAGES = [
+    'Pendiente resultado entrevista',
+    'Entrevista aprobada — pend. BG',
+    'BG aprobado — pend. PM',
+    'PM aprobada — pend. onboarding',
+    'Onboarding asignado',
+    'Post-onboarding / Docs',
+  ];
+  const STAGE_COLORS = [
+    COLORS.yellow, COLORS.cyan, COLORS.indigo,
+    COLORS.purple, COLORS.green, '#10b981',
+  ];
+
+  function getPipelineStage(r) {
+    if (r.docs_y_didi)                          return 'Post-onboarding / Docs';
+    if (r.asistencia_onboarding === 'Asistió')  return 'Post-onboarding / Docs';
+    if (r.onboarding_dia)                       return 'Onboarding asignado';
+    if (r.prueba_manejo === 'Aprobado')         return 'PM aprobada — pend. onboarding';
+    if (r.suma_bg === 'Aprobado')               return 'BG aprobado — pend. PM';
+    if (r.estado_entrevista === 'Aprobado')     return 'Entrevista aprobada — pend. BG';
+    return 'Pendiente resultado entrevista';
+  }
+
+  function isActivePipeline(r) {
+    if (r.asistencia !== 'Realizada') return false;
+    if (r.firma_contrato)             return false;
+    if (['No aprobado','Se retiró','Declinó oferta'].includes(r.estado_entrevista)) return false;
+    if (r.suma_bg === 'No aprobado')  return false;
+    if (r.prueba_manejo === 'No aprobado') return false;
+    if (r.declina_oferta && r.declina_oferta !== 'No') return false;
+    return true;
+  }
+
+  function renderPipeline(rows) {
+    // Friday 3pm cutoff for current week
+    const nowMX   = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Mexico_City'}));
+    const todayMX = new Date(nowMX.getFullYear(), nowMX.getMonth(), nowMX.getDate());
+    const dow = todayMX.getDay(); // 0=Sun … 6=Sat
+    const daysSinceFri = dow === 5 ? (nowMX.getHours() >= 15 ? 0 : 7) : (dow + 2) % 7;
+    const lastFri = new Date(todayMX);
+    lastFri.setDate(lastFri.getDate() - daysSinceFri);
+    const cutoffStr = fmtDate(lastFri);
+
+    const active = rows.filter(isActivePipeline);
+
+    // Chart: group by inicio week (≤ cutoff for current partial week)
+    const weekMap = {};
+    active.forEach(r => {
+      const inicio = (r.inicio || '').slice(0, 10);
+      if (inicio > cutoffStr) return;
+      const w = isoWeek(inicio);
+      if (!w) return;
+      if (!weekMap[w]) weekMap[w] = {};
+      const s = getPipelineStage(r);
+      weekMap[w][s] = (weekMap[w][s] || 0) + 1;
+    });
+
+    const chartWeeks = Object.keys(weekMap).map(Number).sort((a, b) => a - b);
+    makeChart('pipelineEvolChart', {
+      type: 'bar',
+      data: {
+        labels: chartWeeks.map(w => `S${w}`),
+        datasets: STAGES.map((stage, i) => ({
+          label: stage,
+          data: chartWeeks.map(w => weekMap[w][stage] || 0),
+          backgroundColor: STAGE_COLORS[i] + 'bb',
+          borderColor: STAGE_COLORS[i],
+          borderWidth: 1,
+          borderRadius: 4,
+          stack: 'stack',
+        })),
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { padding: 12, font: { size: 11 }, color: '#e2e8f0' } },
+          datalabels: { display: false },
+        },
+        scales: {
+          x: { grid: { display: false }, stacked: true },
+          y: { grid: { color: '#2e334d' }, stacked: true, min: 0 },
+        },
+      },
+    });
+
+    // Table — sorted by stage (latest stage first) then by inicio desc
+    const stageIdx = Object.fromEntries(STAGES.map((s, i) => [s, i]));
+    const sorted = [...active].sort((a, b) => {
+      const di = stageIdx[getPipelineStage(b)] - stageIdx[getPipelineStage(a)];
+      return di !== 0 ? di : (b.inicio || '').localeCompare(a.inicio || '');
+    });
+
+    document.getElementById('pipeline-count').textContent = active.length;
+    const colorMap = Object.fromEntries(STAGES.map((s, i) => [s, STAGE_COLORS[i]]));
+
+    document.getElementById('pipeline-tbody').innerHTML = sorted.map(r => {
+      const stage = getPipelineStage(r);
+      const color = colorMap[stage];
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 12px;font-weight:600;white-space:nowrap">${r.candidato || '—'}</td>
+        <td style="padding:8px 12px;color:var(--muted)">S${isoWeek(r.inicio) || '?'}</td>
+        <td style="padding:8px 12px;color:var(--muted)">${r.inicio || '—'}</td>
+        <td style="padding:8px 12px"><span style="background:${color}22;color:${color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${stage}</span></td>
+        <td style="padding:8px 12px;color:var(--muted)">${r.canal || '—'}</td>
+        <td style="padding:8px 12px;color:var(--muted)">${r.entrevistador || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    window._pipelineRows = sorted.map(r => ({
+      Candidato:            r.candidato || '',
+      Semana:               `S${isoWeek(r.inicio) || ''}`,
+      Inicio:               r.inicio || '',
+      Etapa:                getPipelineStage(r),
+      Canal:                r.canal || '',
+      Entrevistador:        r.entrevistador || '',
+      Estado_entrevista:    r.estado_entrevista || '',
+      Background_check:     r.background_check || '',
+      Suma_BG:              r.suma_bg || '',
+      Prueba_manejo:        r.prueba_manejo || '',
+      Onboarding_dia:       r.onboarding_dia || '',
+      Asist_onboarding:     r.asistencia_onboarding || '',
+      Docs_y_DiDi:          r.docs_y_didi || '',
+    }));
+  }
+
+  function exportPipeline() {
+    const rows = window._pipelineRows;
+    if (!rows?.length) return;
+    const headers = Object.keys(rows[0]);
+    const csv = [
+      headers.join(','),
+      ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `pipeline-activo-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
   }
 
   // ── HELPERS (DETALLE) ────────────────────────────────────────────────
