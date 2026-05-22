@@ -946,8 +946,8 @@
   // ── PIPELINE ACTIVO ──────────────────────────────────────────────────
   const STAGES = [
     'Pendiente resultado entrevista',
-    'Entrevista aprobada — pend. BG',
-    'BG aprobado — pend. PM',
+    'Entrevista aprobada — pend. BackCheck',
+    'BackCheck aprobado — pend. PM',
     'PM aprobada — pend. onboarding',
     'Onboarding asignado',
     'Post-onboarding / Docs',
@@ -962,8 +962,8 @@
     if (r.asistencia_onboarding === 'Asistió')  return 'Post-onboarding / Docs';
     if (r.onboarding_dia)                       return 'Onboarding asignado';
     if (r.prueba_manejo === 'Aprobado')         return 'PM aprobada — pend. onboarding';
-    if (r.suma_bg === 'Aprobado')               return 'BG aprobado — pend. PM';
-    if (r.estado_entrevista === 'Aprobado')     return 'Entrevista aprobada — pend. BG';
+    if (r.suma_bg === 'Aprobado')               return 'BackCheck aprobado — pend. PM';
+    if (r.estado_entrevista === 'Aprobado')     return 'Entrevista aprobada — pend. BackCheck';
     return 'Pendiente resultado entrevista';
   }
 
