@@ -992,7 +992,23 @@
     lastFri.setDate(lastFri.getDate() - daysSinceFri);
     const cutoffStr = fmtDate(lastFri);
 
-    const active = rows.filter(isActivePipeline);
+    const asistio      = rows.filter(r => r.asistencia === 'Realizada');
+    const sinFirma     = asistio.filter(r => !r.firma_contrato);
+    const sinRechEnt   = sinFirma.filter(r => !['No aprobado','Se retiró','Declinó oferta'].includes(r.estado_entrevista));
+    const sinRechBG    = sinRechEnt.filter(r => r.suma_bg !== 'No aprobado');
+    const sinRechPM    = sinRechBG.filter(r => r.prueba_manejo !== 'No aprobado');
+    const active       = sinRechPM.filter(r => !r.declina_oferta || r.declina_oferta === 'No');
+    console.table({
+      'Total Supabase':       rows.length,
+      'Asistencia=Realizada': asistio.length,
+      'Sin firma contrato':   sinFirma.length,
+      'Sin rechazo entrev.':  sinRechEnt.length,
+      'Sin rechazo BackCheck':sinRechBG.length,
+      'Sin rechazo PM':       sinRechPM.length,
+      'Active (sin declina)': active.length,
+    });
+    console.log('Valores declina_oferta (sinRechPM):', [...new Set(sinRechPM.map(r=>r.declina_oferta))]);
+    console.log('Valores prueba_manejo (sinRechBG):', [...new Set(sinRechBG.map(r=>r.prueba_manejo))]);
 
     // weekMapAll: all active candidates (used for pivot table + detail list)
     const weekMapAll = {};
