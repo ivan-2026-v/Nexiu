@@ -365,19 +365,19 @@
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
     <div class="card-title">4. Asistentes por semana</div>
-    <div class="chart-wrap"><canvas id="weekPresChart" height="180"></canvas></div>
+    <div class="chart-wrap" style="height:200px"><canvas id="weekPresChart"></canvas></div>
   </div>
   <div class="card">
     <div class="card-title">5. Entrevistas aprobadas por semana</div>
-    <div class="chart-wrap"><canvas id="weekEntChart" height="180"></canvas></div>
+    <div class="chart-wrap" style="height:200px"><canvas id="weekEntChart"></canvas></div>
   </div>
   <div class="card">
     <div class="card-title">6. Pruebas de manejo aprobadas por semana</div>
-    <div class="chart-wrap"><canvas id="weekPMChart" height="180"></canvas></div>
+    <div class="chart-wrap" style="height:200px"><canvas id="weekPMChart"></canvas></div>
   </div>
   <div class="card">
     <div class="card-title">7. Contrataciones por semana</div>
-    <div class="chart-wrap"><canvas id="contratacionesChart" height="180"></canvas></div>
+    <div class="chart-wrap" style="height:200px"><canvas id="contratacionesChart"></canvas></div>
   </div>
 </div>
 
@@ -783,24 +783,25 @@
     });
 
     // ── 4 MÉTRICAS SEMANALES ────────────────────────────────────────
-    const weekMetricOpts = (label, color) => ({
+    const weekMetricOpts = () => ({
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend:{display:false}, datalabels:{display:true,anchor:'center',align:'center',color:'#fff',font:{size:11,weight:'700'},formatter:v=>v||''} },
-      scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{stepSize:1},min:0} }
+      scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},min:0,ticks:{stepSize:1}} }
     });
     makeChart('weekPresChart', {
       type:'bar',
       data:{ labels:weekLabels, datasets:[{ data:weekPres, backgroundColor:COLORS.cyan+'bb', borderColor:COLORS.cyan, borderWidth:1, borderRadius:4 }] },
-      options: weekMetricOpts('Asistentes', COLORS.cyan)
+      options: weekMetricOpts()
     });
     makeChart('weekEntChart', {
       type:'bar',
       data:{ labels:weekLabels, datasets:[{ data:sortedWeeks.map(w=>weekOrder[w].aprobEnt), backgroundColor:COLORS.green+'bb', borderColor:COLORS.green, borderWidth:1, borderRadius:4 }] },
-      options: weekMetricOpts('Entrevistas aprobadas', COLORS.green)
+      options: weekMetricOpts()
     });
     makeChart('weekPMChart', {
       type:'bar',
       data:{ labels:weekLabels, datasets:[{ data:sortedWeeks.map(w=>weekOrder[w].aprobPM), backgroundColor:COLORS.yellow+'bb', borderColor:COLORS.yellow, borderWidth:1, borderRadius:4 }] },
-      options: weekMetricOpts('Pruebas aprobadas', COLORS.yellow)
+      options: weekMetricOpts()
     });
 
     // ── CONVERSION BY WEEK ───────────────────────────────────────────
@@ -888,6 +889,7 @@
         backgroundColor: COLORS.green+'bb', borderColor: COLORS.green, borderWidth:1, borderRadius:4
       }]},
       options: {
+        responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display:false },
           datalabels: { display:true, anchor:'center', align:'center', color:'#fff', font:{size:12,weight:'700'}, formatter: v => v || '' }
