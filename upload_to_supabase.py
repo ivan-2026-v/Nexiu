@@ -94,55 +94,74 @@ def load_excel(path):
     return deduped
 
 # ── UPLOAD ────────────────────────────────────────────────────────────────────
+def _send_batch(chunk, skip_fields):
+    """POST one batch to Supabase. Returns (ok: bool, uploaded: int)."""
+    if skip_fields:
+        chunk = [{k: v for k, v in r.items() if k not in skip_fields} for r in chunk]
+    resp = requests.post(
+        f"{SUPABASE_URL}/rest/v1/funnel",
+        headers=HEADERS,
+        json=chunk,
+    )
+    # If a column doesn't exist yet, strip it and retry once
+    if resp.status_code == 400:
+        try:
+            err = resp.json()
+        except Exception:
+            err = {}
+        if err.get('code') == 'PGRST204':
+            import re
+            col = re.search(r"'(\w+)' column", err.get('message', ''))
+            if col:
+                field = col.group(1)
+                skip_fields.add(field)
+                print(f"  ⚠ Columna '{field}' no existe en Supabase, se omitirá")
+                chunk = [{k: v for k, v in r.items() if k not in skip_fields} for r in chunk]
+                resp = requests.post(
+                    f"{SUPABASE_URL}/rest/v1/funnel",
+                    headers=HEADERS,
+                    json=chunk,
+                )
+    if resp.status_code not in (200, 201):
+        print(f"  ERROR batch: {resp.status_code} {resp.text[:200]}")
+        return False, 0
+    return True, len(chunk)
+
+
 def upload(records, batch=200):
+    """Upload records, stripping None values so blank cells never overwrite
+    existing data in Supabase.  Supabase (PGRST102) requires every object in a
+    bulk upsert to have identical keys, so we group records by their key-set
+    and send each group in its own set of batches."""
+    ALWAYS_SEND = {"id_candidato", "periodo"}
+
+    # Strip Nones — preserves existing non-null values on merge-duplicates
+    stripped = [
+        {k: v for k, v in r.items() if v is not None or k in ALWAYS_SEND}
+        for r in records
+    ]
+
+    # Group by frozenset of keys so every batch is homogeneous
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for r in stripped:
+        groups[frozenset(r.keys())].append(r)
+
     total = len(records)
     uploaded = 0
     skip_fields = set()
 
-    for i in range(0, total, batch):
-        # Strip None values so the upsert never overwrites an existing non-null
-        # field with null when a cell is blank in the source spreadsheet.
-        # id_candidato and periodo are always kept (even if empty) as they are
-        # required for the upsert key / audit trail.
-        ALWAYS_SEND = {"id_candidato", "periodo"}
-        chunk = [
-            {k: v for k, v in r.items() if v is not None or k in ALWAYS_SEND}
-            for r in records[i:i+batch]
-        ]
-        if skip_fields:
-            chunk = [{k: v for k, v in r.items() if k not in skip_fields} for r in chunk]
+    for key_set, group in groups.items():
+        for i in range(0, len(group), batch):
+            chunk = group[i:i+batch]
+            ok, n = _send_batch(chunk, skip_fields)
+            if ok:
+                uploaded += n
+                print(f"  ✓ {uploaded}/{total} registros subidos")
 
-        resp = requests.post(
-            f"{SUPABASE_URL}/rest/v1/funnel",
-            headers=HEADERS,
-            json=chunk,
-        )
-
-        # If a column doesn't exist yet, strip it and retry this batch
-        if resp.status_code == 400:
-            try:
-                err = resp.json()
-            except Exception:
-                err = {}
-            if err.get('code') == 'PGRST204':
-                import re
-                col = re.search(r"'(\w+)' column", err.get('message', ''))
-                if col:
-                    field = col.group(1)
-                    skip_fields.add(field)
-                    print(f"  ⚠ Columna '{field}' no existe en Supabase, se omitirá hasta que se agregue")
-                    chunk = [{k: v for k, v in r.items() if k not in skip_fields} for r in chunk]
-                    resp = requests.post(
-                        f"{SUPABASE_URL}/rest/v1/funnel",
-                        headers=HEADERS,
-                        json=chunk,
-                    )
-
-        if resp.status_code not in (200, 201):
-            print(f"  ERROR en batch {i}: {resp.status_code} {resp.text[:200]}")
-        else:
-            uploaded += len(chunk)
-            print(f"  ✓ {uploaded}/{total} registros subidos")
+    if skip_fields:
+        print(f"  ℹ Campos omitidos (columna faltante en Supabase): {', '.join(skip_fields)}")
+    return uploaded
 
     if skip_fields:
         print(f"  ℹ Campos omitidos (columna faltante en Supabase): {', '.join(skip_fields)}")
