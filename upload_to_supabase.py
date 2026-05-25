@@ -100,7 +100,15 @@ def upload(records, batch=200):
     skip_fields = set()
 
     for i in range(0, total, batch):
-        chunk = records[i:i+batch]
+        # Strip None values so the upsert never overwrites an existing non-null
+        # field with null when a cell is blank in the source spreadsheet.
+        # id_candidato and periodo are always kept (even if empty) as they are
+        # required for the upsert key / audit trail.
+        ALWAYS_SEND = {"id_candidato", "periodo"}
+        chunk = [
+            {k: v for k, v in r.items() if v is not None or k in ALWAYS_SEND}
+            for r in records[i:i+batch]
+        ]
         if skip_fields:
             chunk = [{k: v for k, v in r.items() if k not in skip_fields} for r in chunk]
 
