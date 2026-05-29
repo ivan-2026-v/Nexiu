@@ -1,0 +1,5 @@
+browser_session/
+*.log
+.last_sync_date
+*.xlsx
+.DS_Store
