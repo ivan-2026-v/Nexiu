@@ -1,10 +1,16 @@
 name: Sync Funnel → Supabase
 
+# NOTE: This workflow is DISABLED.
+# Data now comes from the Railway app (https://lafa-nexiu-os-production.up.railway.app/workflow)
+# and is synced daily at 8am by the macOS launchd agent:
+#   ~/Library/LaunchAgents/com.nexiu.lafa.sync.plist
+#   Script: /Users/ivan/Code/vibe-coding/nexiu/LAFA/sync_railway.py
+#
+# To re-enable, restore the 'on:' triggers below and update the download step
+# to use the Railway export URL instead of Google Sheets.
+
 on:
-  schedule:
-    - cron: '0 13 * * *'   # 8:00 am México (CDT = UTC-5)
-    - cron: '0 1 * * *'    # 8:00 pm México (CDT = UTC-5)
-  workflow_dispatch:        # permite lanzarlo manualmente desde GitHub
+  workflow_dispatch:   # manual trigger only
 
 jobs:
   sync:

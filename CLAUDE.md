@@ -10,7 +10,42 @@ A recruitment funnel dashboard for **LAFA / Nexiu**. Data lives in a Supabase ta
 
 Open `LAFA/recruitment-dashboard.html` directly in a browser. It fetches data from Supabase at load time via the REST API — no local server needed.
 
-## Updating data
+## Daily automated sync (macOS launchd)
+
+`sync_railway.py` is the daily sync agent. It:
+1. Logs into `https://lafa-nexiu-os-production.up.railway.app/workflow` via Google OAuth
+2. Downloads the funnel export for April 1, 2026 → today ("Rango de días")
+3. Saves the `.xlsx` to this folder
+4. Uploads to Supabase via `upload_to_supabase.py`
+
+```bash
+# Run manually (headless)
+python3 sync_railway.py
+
+# Run with browser visible
+python3 sync_railway.py --headed
+
+# Download only, skip upload
+python3 sync_railway.py --no-upload
+
+# Explore UI without uploading (shows element snapshots)
+python3 sync_railway.py --explore
+```
+
+The macOS launchd agent runs this every day at 8am:
+- Plist: `~/Library/LaunchAgents/com.nexiu.lafa.sync.plist`
+- Logs: `sync_railway.log` in this folder
+
+```bash
+# Load/unload the launchd agent
+launchctl load   ~/Library/LaunchAgents/com.nexiu.lafa.sync.plist
+launchctl unload ~/Library/LaunchAgents/com.nexiu.lafa.sync.plist
+
+# Run manually right now
+launchctl start com.nexiu.lafa.sync
+```
+
+## Manual data update from local Excel file
 
 ```bash
 # Run locally against a local Excel file
@@ -22,7 +57,7 @@ python3 upload_to_supabase.py funnel.xlsx --periodo 2026-05-01_2026-05-31
 
 Python dependencies: `openpyxl`, `requests` (no virtualenv in the repo; install with `pip`).
 
-The GitHub Actions workflow (`.github/workflows/sync-funnel.yml`) runs this automatically twice a day. It downloads the Google Sheet, computes a rolling period from `2026-04-01` to today, and upserts into Supabase using `resolution=merge-duplicates` on `id_candidato`.
+The GitHub Actions workflow (`.github/workflows/sync-funnel.yml`) is **disabled** — it was the old Google Sheets sync. Data now comes exclusively from the Railway app via `sync_railway.py`.
 
 ## Architecture
 
