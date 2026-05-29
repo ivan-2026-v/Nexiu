@@ -27,7 +27,8 @@ GOOGLE_PASS   = "kjWgvRgpe%$42P"
 DOWNLOAD_DIR  = Path("/Users/ivan/Code/vibe-coding/nexiu/LAFA")
 UPLOAD_SCRIPT = DOWNLOAD_DIR / "upload_to_supabase.py"
 START_DATE    = "2026-04-01"   # Always April 1st
-SENTINEL_FILE = DOWNLOAD_DIR / ".last_sync_date"   # tracks "already ran today"
+SENTINEL_FILE    = DOWNLOAD_DIR / ".last_sync_date"   # tracks "already ran today"
+BROWSER_SESSION  = DOWNLOAD_DIR / "browser_session"   # persistent cookies/auth
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
@@ -277,13 +278,14 @@ def main():
             return
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(
+        # Persistent context: saves cookies/session across runs so Google
+        # OAuth only happens once (on first run or after session expires).
+        context = pw.chromium.launch_persistent_context(
+            user_data_dir=str(BROWSER_SESSION),
             headless=not headed,
             slow_mo=300 if headed else 0,
-            downloads_path=str(DOWNLOAD_DIR),
-        )
-        context = browser.new_context(
             accept_downloads=True,
+            downloads_path=str(DOWNLOAD_DIR),
             viewport={"width": 1400, "height": 900},
         )
         page = context.new_page()
@@ -291,7 +293,7 @@ def main():
         ensure_logged_in(page)
 
         local_file = download_export(page, explore=explore)
-        browser.close()
+        context.close()
 
     if local_file is None:
         log("✗ No se pudo descargar el archivo.")
