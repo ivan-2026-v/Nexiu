@@ -27,6 +27,7 @@ GOOGLE_PASS   = "kjWgvRgpe%$42P"
 DOWNLOAD_DIR  = Path("/Users/ivan/Code/vibe-coding/nexiu/LAFA")
 UPLOAD_SCRIPT = DOWNLOAD_DIR / "upload_to_supabase.py"
 START_DATE    = "2026-04-01"   # Always April 1st
+SENTINEL_FILE = DOWNLOAD_DIR / ".last_sync_date"   # tracks "already ran today"
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
@@ -106,8 +107,8 @@ def google_login(page):
 def ensure_logged_in(page):
     """Navigate to Railway and handle login if needed."""
     log(f"Navegando a {RAILWAY_URL}…")
-    page.goto(RAILWAY_URL, wait_until="domcontentloaded", timeout=30_000)
-    page.wait_for_timeout(1000)
+    page.goto(RAILWAY_URL, wait_until="load", timeout=30_000)
+    page.wait_for_timeout(1500)
 
     url = page.url
     if "accounts.google.com" in url:
@@ -143,7 +144,8 @@ def download_export(page, explore=False):
     2. In the modal: select "Rango de días", fill dates, click download
     Returns local Path of downloaded file, or None.
     """
-    page.wait_for_load_state("networkidle", timeout=20_000)
+    page.wait_for_load_state("load", timeout=20_000)
+    page.wait_for_timeout(2000)   # extra settle time for JS rendering
     if explore:
         snapshot(page, "BEFORE EXPORT CLICK")
 
@@ -246,15 +248,33 @@ def download_export(page, explore=False):
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
+def already_ran_today():
+    """Return True if the sentinel file records today's date."""
+    try:
+        return SENTINEL_FILE.read_text().strip() == today_str()
+    except FileNotFoundError:
+        return False
+
+def mark_ran_today():
+    SENTINEL_FILE.write_text(today_str())
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--headed",    action="store_true", help="Show browser window")
     parser.add_argument("--explore",   action="store_true", help="Print UI snapshots (implies --headed)")
     parser.add_argument("--no-upload", action="store_true", help="Skip Supabase upload")
+    parser.add_argument("--force",     action="store_true", help="Run even if already ran today")
     args = parser.parse_args()
 
     headed  = args.headed or args.explore
     explore = args.explore
+
+    # Skip if already ran today (unless --force or interactive modes)
+    if not args.force and not explore and not args.headed:
+        if already_ran_today():
+            log(f"Ya se ejecutó hoy ({today_str()}). Usa --force para forzar.")
+            return
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
@@ -290,6 +310,7 @@ def main():
     )
     if result.returncode == 0:
         log("✓ Supabase actualizado correctamente")
+        mark_ran_today()   # stamp success so retries today are skipped
     else:
         log(f"✗ Error al subir a Supabase (código {result.returncode})")
         sys.exit(result.returncode)
