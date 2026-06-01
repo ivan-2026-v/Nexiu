@@ -15,6 +15,7 @@ import requests
 SUPABASE_URL = "https://ctbkipgraypohrdeoggv.supabase.co"
 SUPABASE_KEY = "sb_publishable_xcIKLzG17KzKOUHA1QlpoQ_WHWnz95d"
 PERIODO      = "2026-04-01_2026-05-07"   # actualizar cada corrida
+SYNCED_AT    = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")  # set at import time
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -83,6 +84,7 @@ def load_excel(path):
             "firma_contrato":      parse_date(r.get("Firma de contrato")),
             "ultima_modificacion": str(r.get("Última modificación") or ""),
             "periodo":             PERIODO,
+            "synced_at":           SYNCED_AT,
         })
     # Deduplicate by id_candidato, keeping last occurrence
     seen = {}
