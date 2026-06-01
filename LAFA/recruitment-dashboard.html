@@ -279,7 +279,7 @@
 
 <header>
   <h1>Dashboard de Reclutamiento</h1>
-  <p>Funnel HR OS · Canal Nexiu · Datos en vivo desde Supabase</p>
+  <p>Funnel HR OS · Canal Nexiu · Datos en vivo desde Supabase &nbsp;·&nbsp; <span id="header-updated" style="opacity:.75">Cargando…</span></p>
   <span class="badge" id="header-periodo">Cargando...</span>
 </header>
 
@@ -1494,6 +1494,21 @@
       const fmt = d => d ? d.slice(5).split('-').reverse().join('/') + '/' + d.slice(0,4) : '?';
       const el = document.getElementById('header-periodo');
       if (el) el.textContent = `${fmt(dates[0])} — ${fmt(dates[dates.length-1])}  ·  ${rows.length.toLocaleString()} candidatos`;
+
+      // "Last updated" — take the latest periodo end date across all rows
+      const updEl = document.getElementById('header-updated');
+      if (updEl) {
+        const periodos = rows.map(r => r.periodo).filter(Boolean);
+        const lastPeriodo = periodos.sort().at(-1) || '';          // e.g. "2026-04-01_2026-05-29"
+        const endDateStr  = lastPeriodo.split('_').at(-1) || '';   // "2026-05-29"
+        if (endDateStr) {
+          const d = new Date(endDateStr + 'T12:00:00');            // noon = no TZ shift
+          const label = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+          updEl.textContent = `Actualizado: ${label}`;
+        } else {
+          updEl.textContent = '';
+        }
+      }
     }
 
     updateKPIs(rows);
