@@ -993,81 +993,59 @@
      */
     const stackedBar = (actualVals, base, maintainAspectRatio = true) => {
       const extraVals = extra(actualVals);
-      // for past months MoM, compare against previous month actual
-      const actualPrevMap = actualVals.map((v, i) => i > 0 ? actualVals[i-1] : null);
+      const prevVals  = actualVals.map((v, i) => i > 0 ? actualVals[i-1] : null);
       return {
         type: 'bar',
         data: { labels, datasets: [
-          {
-            label: 'Real',
-            data: actualVals,
-            backgroundColor: base+'bb', borderColor: base, borderWidth: 1, borderRadius: 4,
-            stack: 'st',
-            datalabels: {
-              labels: {
-                // value centered inside actual bar
-                val: {
-                  display: ctx => ctx.raw > 0,
-                  anchor: 'center', align: 'center',
-                  color: '#fff', font: { size: 12, weight: '700' },
-                  formatter: v => v,
-                },
-                // MoM% above bar — only for past months (extraVals[i] === 0)
-                mom: {
-                  display: ctx => ctx.raw > 0 && ctx.dataIndex > 0 && extraVals[ctx.dataIndex] === 0,
-                  anchor: 'end', align: 'top', clip: false,
-                  color: '#94a3b8', font: { size: 10, weight: '700' },
-                  padding: { bottom: 2 },
-                  formatter: (v, ctx) => momStr(v, actualPrevMap[ctx.dataIndex]) || '',
-                }
-              }
-            }
-          },
-          {
-            label: 'Proyectado',
-            data: extraVals,
-            backgroundColor: base+'35', borderColor: base+'70', borderWidth: 1,
-            stack: 'st',
-            datalabels: {
-              labels: {
-                // projected total centered inside projected segment
-                val: {
-                  display: ctx => ctx.raw > 0,
-                  anchor: 'center', align: 'center',
-                  color: '#94a3b8', font: { size: 11, weight: '600' },
-                  formatter: (v, ctx) => `~${actualVals[ctx.dataIndex] + v}`,
-                },
-                // MoM% above the stacked bar for current month
-                mom: {
-                  display: ctx => ctx.raw > 0 && ctx.dataIndex > 0,
-                  anchor: 'end', align: 'top', clip: false,
-                  color: '#94a3b8', font: { size: 10, weight: '700' },
-                  padding: { bottom: 2 },
-                  formatter: (v, ctx) => {
-                    const i = ctx.dataIndex;
-                    const projTotal = actualVals[i] + v;
-                    return momStr(projTotal, actualPrevMap[i]) || '';
-                  }
-                }
-              }
-            }
-          }
+          { label:'Real',      data: actualVals, backgroundColor: base+'bb', borderColor: base,      borderWidth:1, borderRadius:4, stack:'st' },
+          { label:'Proyectado',data: extraVals,  backgroundColor: base+'35', borderColor: base+'70', borderWidth:1,                stack:'st' },
         ]},
         options: {
           responsive: true, maintainAspectRatio,
-          layout: { padding: { top: 32 } },
+          layout: { padding: { top: 36 } },
           plugins: {
             legend: { display: false },
+            datalabels: {
+              labels: {
+                // ── value: centered in each bar segment ──────────────
+                val: {
+                  display: ctx => ctx.raw > 0,
+                  anchor: 'center', align: 'center',
+                  color:  ctx => ctx.datasetIndex === 0 ? '#fff' : '#cbd5e1',
+                  font:   ctx => ({ size: ctx.datasetIndex === 0 ? 12 : 11, weight: '700' }),
+                  formatter: (v, ctx) =>
+                    ctx.datasetIndex === 0 ? v : `~${actualVals[ctx.dataIndex] + v}`,
+                },
+                // ── MoM%: above the top of the full bar ──────────────
+                mom: {
+                  // past months → label sits on dataset0 (top of bar since dataset1=0)
+                  // current month → label sits on dataset1 (top of stacked bar)
+                  display: ctx => {
+                    const i = ctx.dataIndex;
+                    if (i === 0) return false;
+                    if (ctx.datasetIndex === 0) return ctx.raw > 0 && extraVals[i] === 0;
+                    if (ctx.datasetIndex === 1) return ctx.raw > 0;
+                    return false;
+                  },
+                  anchor: 'end', align: 'top', clip: false,
+                  color: '#94a3b8', font: { size: 10, weight: '700' },
+                  padding: { bottom: 4 },
+                  formatter: (v, ctx) => {
+                    const i = ctx.dataIndex;
+                    const cur = ctx.datasetIndex === 0 ? v : actualVals[i] + v;
+                    return momStr(cur, prevVals[i]) || '';
+                  },
+                },
+              }
+            },
             tooltip: { callbacks: { label: ctx => {
-              const i = ctx.dataIndex;
-              const isCur = months[i] === curMonthStr;
               if (ctx.datasetIndex === 0) return ` Real: ${ctx.raw}`;
-              return isCur ? ` Proy. total: ~${actualVals[i] + ctx.raw}` : '';
+              return ctx.raw > 0 ? ` Proyectado total: ~${actualVals[ctx.dataIndex] + ctx.raw}` : '';
             }}}
           },
           scales: {
-            x: { grid:{display:false}, stacked: true },
-            y: { grid:{color:'#2e334d'}, stacked: true, min: 0 }
+            x: { grid:{display:false}, stacked:true },
+            y: { grid:{color:'#2e334d'}, stacked:true, min:0 }
           }
         }
       };
@@ -1089,36 +1067,45 @@
     makeChart('contratacionesMonthChart', {
       type: 'bar',
       data: { labels: firmaLabels, datasets: [
-        {
-          label: 'Real',
-          data: firmaActual,
-          backgroundColor: COLORS.green+'bb', borderColor: COLORS.green, borderWidth: 1, borderRadius: 4,
-          stack: 'st',
-          datalabels: { labels: {
-            val: { display: ctx => ctx.raw > 0, anchor:'center', align:'center', color:'#fff', font:{size:12,weight:'700'}, formatter: v => v },
-            mom: { display: ctx => ctx.raw > 0 && ctx.dataIndex > 0 && firmaExtra[ctx.dataIndex] === 0,
-              anchor:'end', align:'top', clip:false, color:'#94a3b8', font:{size:10,weight:'700'}, padding:{bottom:2},
-              formatter: (v, ctx) => momStr(v, firmaPrev[ctx.dataIndex]) || '' }
-          }}
-        },
-        {
-          label: 'Proyectado',
-          data: firmaExtra,
-          backgroundColor: COLORS.green+'35', borderColor: COLORS.green+'70', borderWidth: 1,
-          stack: 'st',
-          datalabels: { labels: {
-            val: { display: ctx => ctx.raw > 0, anchor:'center', align:'center', color:'#94a3b8', font:{size:11,weight:'600'}, formatter: (v, ctx) => `~${firmaActual[ctx.dataIndex] + v}` },
-            mom: { display: ctx => ctx.raw > 0 && ctx.dataIndex > 0, anchor:'end', align:'top', clip:false, color:'#94a3b8', font:{size:10,weight:'700'}, padding:{bottom:2},
-              formatter: (v, ctx) => { const i=ctx.dataIndex; return momStr(firmaActual[i]+v, firmaPrev[i]) || ''; } }
-          }}
-        }
+        { label:'Real',      data: firmaActual, backgroundColor: COLORS.green+'bb', borderColor: COLORS.green,      borderWidth:1, borderRadius:4, stack:'st' },
+        { label:'Proyectado',data: firmaExtra,  backgroundColor: COLORS.green+'35', borderColor: COLORS.green+'70', borderWidth:1,                stack:'st' },
       ]},
       options: {
         responsive: true, maintainAspectRatio: true,
-        layout: { padding: { top: 32 } },
+        layout: { padding: { top: 36 } },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ctx.datasetIndex===0 ? ` Real: ${ctx.raw}` : ` Proy. total: ~${firmaActual[ctx.dataIndex]+ctx.raw}` }}
+          datalabels: {
+            labels: {
+              val: {
+                display: ctx => ctx.raw > 0,
+                anchor: 'center', align: 'center',
+                color:  ctx => ctx.datasetIndex === 0 ? '#fff' : '#cbd5e1',
+                font:   ctx => ({ size: ctx.datasetIndex === 0 ? 12 : 11, weight:'700' }),
+                formatter: (v, ctx) =>
+                  ctx.datasetIndex === 0 ? v : `~${firmaActual[ctx.dataIndex] + v}`,
+              },
+              mom: {
+                display: ctx => {
+                  const i = ctx.dataIndex;
+                  if (i === 0) return false;
+                  if (ctx.datasetIndex === 0) return ctx.raw > 0 && firmaExtra[i] === 0;
+                  if (ctx.datasetIndex === 1) return ctx.raw > 0;
+                  return false;
+                },
+                anchor: 'end', align: 'top', clip: false,
+                color: '#94a3b8', font: { size:10, weight:'700' }, padding: { bottom:4 },
+                formatter: (v, ctx) => {
+                  const i = ctx.dataIndex;
+                  const cur = ctx.datasetIndex === 0 ? v : firmaActual[i] + v;
+                  return momStr(cur, firmaPrev[i]) || '';
+                },
+              },
+            }
+          },
+          tooltip: { callbacks: { label: ctx =>
+            ctx.datasetIndex === 0 ? ` Real: ${ctx.raw}` : ctx.raw > 0 ? ` Proy. total: ~${firmaActual[ctx.dataIndex]+ctx.raw}` : ''
+          }}
         },
         scales: { x:{grid:{display:false},stacked:true}, y:{grid:{color:'#2e334d'},stacked:true,min:0} }
       }
