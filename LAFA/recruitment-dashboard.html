@@ -983,37 +983,59 @@
       return `${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`;
     };
 
-    // Custom plugin: draws MoM% text ABOVE the top of each full stacked bar
-    const makeMomPlugin = (actualVals, extraVals, prevVals) => ({
-      id: 'momPlugin',
+    // Single canvas-draw plugin: values inside bars + MoM% above bars
+    // Bypasses chartjs-plugin-datalabels completely — 100% reliable
+    const makeLabelsPlugin = (actualVals, extraVals, prevVals) => ({
+      id: 'barLabels',
       afterDatasetsDraw(chart) {
         const { ctx } = chart;
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
         ctx.save();
-        ctx.font = '700 10px Inter, system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
+
         actualVals.forEach((actual, i) => {
+          const bar0 = meta0.data[i];
+          const bar1 = meta1.data[i];
+          if (!bar0) return;
+
+          // ── value centered inside actual (solid) bar ─────────────
+          if (actual > 0) {
+            ctx.font = '700 12px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textBaseline = 'middle';
+            const cy = (bar0.y + bar0.base) / 2;
+            ctx.fillText(String(actual), bar0.x, cy);
+          }
+
+          // ── ~projected value centered inside projected segment ────
+          const ext = extraVals[i] || 0;
+          if (ext > 0 && bar1) {
+            ctx.font = '600 11px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#cbd5e1';
+            ctx.textBaseline = 'middle';
+            const cy1 = (bar1.y + bar1.base) / 2;
+            ctx.fillText(`~${actual + ext}`, bar1.x, cy1);
+          }
+
+          // ── MoM% above the full stacked bar ──────────────────────
           if (i === 0) return;
           const prev = prevVals[i];
           if (!prev) return;
-          const ext   = extraVals[i] || 0;
           const total = actual + ext;
           const pct   = Math.round((total - prev) / prev * 100);
-          const text  = `${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`;
+          ctx.font = '700 10px Inter, system-ui, sans-serif';
           ctx.fillStyle = pct >= 0 ? '#6ee7b7' : '#fca5a5';
-          // x = center of bar; y = top of stacked bar
-          const meta0 = chart.getDatasetMeta(0);
-          const meta1 = chart.getDatasetMeta(1);
-          if (!meta0.data[i]) return;
-          const barX   = meta0.data[i].x;
-          const barTop = ext > 0 && meta1.data[i] ? meta1.data[i].y : meta0.data[i].y;
-          ctx.fillText(text, barX, barTop - 4);
+          ctx.textBaseline = 'bottom';
+          const barTop = ext > 0 && bar1 ? bar1.y : bar0.y;
+          ctx.fillText(`${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`, bar0.x, barTop - 4);
         });
+
         ctx.restore();
       }
     });
 
-    // Stacked bar factory — values via chart-level datalabels, MoM% via custom plugin
+    // Stacked bar factory — all labels via canvas, datalabels disabled
     const stackedBar = (actualVals, base, maintainAspectRatio = true) => {
       const extraVals = extra(actualVals);
       const prevVals  = actualVals.map((v, i) => i > 0 ? actualVals[i-1] : null);
@@ -1027,15 +1049,8 @@
           responsive: true, maintainAspectRatio,
           layout: { padding: { top: 28 } },
           plugins: {
-            legend: { display: false },
-            datalabels: {
-              display:   ctx => ctx.raw > 0,
-              anchor:    'center',
-              align:     'center',
-              color:     ctx => ctx.datasetIndex === 0 ? '#fff' : '#cbd5e1',
-              font:      ctx => ({ size: ctx.datasetIndex === 0 ? 12 : 11, weight: '700' }),
-              formatter: (v, ctx) => ctx.datasetIndex === 0 ? v : `~${actualVals[ctx.dataIndex] + v}`,
-            },
+            legend:     { display: false },
+            datalabels: { display: false },   // disabled — canvas plugin handles labels
             tooltip: { callbacks: { label: ctx =>
               ctx.datasetIndex === 0
                 ? ` Real: ${ctx.raw}`
@@ -1047,7 +1062,7 @@
             y: { grid:{color:'#2e334d'}, stacked:true, min:0 }
           }
         },
-        plugins: [ makeMomPlugin(actualVals, extraVals, prevVals) ]
+        plugins: [ makeLabelsPlugin(actualVals, extraVals, prevVals) ]
       };
     };
 
@@ -1070,20 +1085,13 @@
         { label:'Real',       data: firmaActual, backgroundColor: COLORS.green+'bb', borderColor: COLORS.green,      borderWidth:1, borderRadius:4, stack:'st' },
         { label:'Proyectado', data: firmaExtra,  backgroundColor: COLORS.green+'35', borderColor: COLORS.green+'70', borderWidth:1,                stack:'st' },
       ]},
-      plugins: [ makeMomPlugin(firmaActual, firmaExtra, firmaPrev) ],
+      plugins: [ makeLabelsPlugin(firmaActual, firmaExtra, firmaPrev) ],
       options: {
         responsive: true, maintainAspectRatio: true,
         layout: { padding: { top: 28 } },
         plugins: {
-          legend: { display: false },
-          datalabels: {
-            display:   ctx => ctx.raw > 0,
-            anchor:    'center',
-            align:     'center',
-            color:     ctx => ctx.datasetIndex === 0 ? '#fff' : '#cbd5e1',
-            font:      ctx => ({ size: ctx.datasetIndex === 0 ? 12 : 11, weight: '700' }),
-            formatter: (v, ctx) => ctx.datasetIndex === 0 ? v : `~${firmaActual[ctx.dataIndex] + v}`,
-          },
+          legend:     { display: false },
+          datalabels: { display: false },
           tooltip: { callbacks: { label: ctx =>
             ctx.datasetIndex === 0 ? ` Real: ${ctx.raw}` : ctx.raw > 0 ? ` Proy. total: ~${firmaActual[ctx.dataIndex]+ctx.raw}` : ''
           }}
