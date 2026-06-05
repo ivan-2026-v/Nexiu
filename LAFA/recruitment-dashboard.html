@@ -266,6 +266,15 @@
     .backup-tbl tr:hover td { background: var(--surface2); }
     .backup-scroll { max-height: 420px; overflow-y: auto; }
 
+    .funnel-mode-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 6px; padding: 3px 10px;
+      font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: all .15s;
+    }
+    .funnel-mode-btn:hover { color: var(--text); }
+    .funnel-mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
     .week-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .week-chip {
       background: var(--surface2); border: 1px solid var(--border);
@@ -346,7 +355,20 @@
 <!-- FUNNEL + TASAS + WEEKLY -->
 <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">1. Funnel de Reclutamiento</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0">1. Funnel de Reclutamiento</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <div id="funnel-mode-btns" style="display:flex;gap:4px">
+          <button onclick="setFunnelMode('all')"   class="funnel-mode-btn active" data-mode="all">Todo</button>
+          <button onclick="setFunnelMode('week')"  class="funnel-mode-btn"        data-mode="week">Semana</button>
+          <button onclick="setFunnelMode('month')" class="funnel-mode-btn"        data-mode="month">Mes</button>
+        </div>
+        <select id="funnel-period-select" onchange="applyFunnelFilter()"
+          style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                 border-radius:6px;padding:3px 8px;font-size:12px;font-family:inherit;cursor:pointer">
+        </select>
+      </div>
+    </div>
     <div class="funnel" id="funnelChart"></div>
   </div>
   <div class="card">
@@ -796,6 +818,50 @@
           <div class="funnel-pct">${pctLabel}</div>
         </div>`;
     });
+  }
+
+  // ── FUNNEL FILTER ────────────────────────────────────────────────────
+  let _funnelMode = 'all';
+
+  function setFunnelMode(mode) {
+    _funnelMode = mode;
+    // update button styles
+    document.querySelectorAll('.funnel-mode-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === mode)
+    );
+    const sel = document.getElementById('funnel-period-select');
+    if (mode === 'all') {
+      sel.style.display = 'none';
+      renderFunnel(window._allRows);
+      return;
+    }
+    // populate dropdown
+    const rows = window._allRows || [];
+    if (mode === 'week') {
+      const weeks = [...new Set(rows.map(r => isoWeek(r.inicio)).filter(Boolean))].sort((a,b) => b-a);
+      sel.innerHTML = weeks.map(w => `<option value="${w}">Semana ${w}</option>`).join('');
+    } else {
+      const monthName = m => {
+        const [y, mo] = m.split('-');
+        return new Date(+y, +mo-1, 1).toLocaleDateString('es-MX', {month:'long', year:'numeric'});
+      };
+      const months = [...new Set(rows.map(r => (r.inicio||'').slice(0,7)).filter(Boolean))].sort().reverse();
+      sel.innerHTML = months.map(m => `<option value="${m}">${monthName(m)}</option>`).join('');
+    }
+    sel.style.display = 'block';
+    applyFunnelFilter();
+  }
+
+  function applyFunnelFilter() {
+    const rows = window._allRows || [];
+    const val  = document.getElementById('funnel-period-select').value;
+    let filtered;
+    if (_funnelMode === 'week') {
+      filtered = rows.filter(r => isoWeek(r.inicio) === +val);
+    } else {
+      filtered = rows.filter(r => (r.inicio||'').startsWith(val));
+    }
+    renderFunnel(filtered);
   }
 
   function updateKPIs(rows) {
