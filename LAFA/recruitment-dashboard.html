@@ -980,10 +980,25 @@
       responsive: true, maintainAspectRatio: true,
       plugins: {
         legend: { display: true, position:'bottom', labels:{padding:10, font:{size:11}, color:'#e2e8f0'} },
-        datalabels: { display: false },
+        datalabels: {
+          display: ctx => ctx.dataset.index === 0 ? ctx.raw > 0 : ctx.raw > 0,  // show on both datasets when >0
+          anchor: ctx => ctx.dataset.index === 0 ? 'center' : 'end',
+          align:  ctx => ctx.dataset.index === 0 ? 'center' : 'top',
+          color:  ctx => ctx.dataset.index === 0 ? '#fff' : '#94a3b8',
+          font:   ctx => ({ size: 11, weight: ctx.dataset.index === 0 ? '700' : '600' }),
+          formatter: (val, ctx) => {
+            if (!val) return '';
+            if (ctx.dataset.index === 1) {
+              // Show projected total (actual + extra)
+              const actual = ctx.chart.data.datasets[0].data[ctx.dataIndex] || 0;
+              return '~' + (actual + val);
+            }
+            return val;
+          }
+        },
         tooltip: { callbacks: { label: ctx => {
           const label = ctx.dataset.label || '';
-          return label.includes('Proyec') ? ` Proyectado total: ${ctx.raw + (ctx.chart.data.datasets[0].data[ctx.dataIndex]||0)}` : ` ${label}: ${ctx.raw}`;
+          return label.includes('Proyec') ? ` Proyectado total: ~${ctx.raw + (ctx.chart.data.datasets[0].data[ctx.dataIndex]||0)}` : ` ${label}: ${ctx.raw}`;
         }}}
       },
       scales: { x:{grid:{display:false}, stacked:true}, y:{grid:{color:'#2e334d'}, stacked:true, min:0} },
@@ -1040,7 +1055,7 @@
       { label:'Llegó a entrevista',   data: convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
       { label:'Aprobó entrevista',    data: convMonth.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
       { label:'Aprobó prueba manejo', data: convMonth.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
-    ]}, options:{ plugins:{ legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true } });
+    ]}, options:{ plugins:{ legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{display:true, anchor:'top', align:'top', font:{size:10,weight:'600'}, formatter:(v,ctx)=>v>0?v+'%':''}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true } });
   }
 
   // ── BACKUP TAB ────────────────────────────────────────────────────────
