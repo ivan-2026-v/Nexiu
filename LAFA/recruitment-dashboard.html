@@ -760,7 +760,7 @@
       <div class="chart-wrap" style="height:240px"><canvas id="mktWeekCostChart"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">M3. $ / contratado — semanal</div>
+      <div class="card-title">M3. $ / entrevista aprobada &amp; $ / contratado — semanal</div>
       <div class="chart-wrap" style="height:240px"><canvas id="mktWeekHiredChart"></canvas></div>
     </div>
   </div>
@@ -777,7 +777,7 @@
       <div class="chart-wrap" style="height:240px"><canvas id="mktMonthCostChart"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">M6. $ / contratado — mensual</div>
+      <div class="card-title">M6. $ / entrevista aprobada &amp; $ / contratado — mensual</div>
       <div class="chart-wrap" style="height:240px"><canvas id="mktMonthHiredChart"></canvas></div>
     </div>
   </div>
@@ -1825,9 +1825,10 @@
     rows.forEach(r => {
       const w = isoWeek(r.inicio);
       if (!w) return;
-      if (!wkFunnel[w]) wkFunnel[w] = {total:0, presentes:0, contratados:0};
+      if (!wkFunnel[w]) wkFunnel[w] = {total:0, presentes:0, aprobEnt:0, contratados:0};
       wkFunnel[w].total++;
       if (r.asistencia    === 'Realizada') wkFunnel[w].presentes++;
+      if (r.suma_bg       === 'Aprobado')  wkFunnel[w].aprobEnt++;
       if (r.firma_contrato)                wkFunnel[w].contratados++;
     });
 
@@ -1846,9 +1847,10 @@
     rows.forEach(r => {
       const m = (r.inicio||'').slice(0,7);
       if (!m) return;
-      if (!moFunnel[m]) moFunnel[m] = {total:0, presentes:0, contratados:0};
+      if (!moFunnel[m]) moFunnel[m] = {total:0, presentes:0, aprobEnt:0, contratados:0};
       moFunnel[m].total++;
       if (r.asistencia    === 'Realizada') moFunnel[m].presentes++;
+      if (r.suma_bg       === 'Aprobado')  moFunnel[m].aprobEnt++;
       if (r.firma_contrato)                moFunnel[m].contratados++;
     });
 
@@ -1861,6 +1863,7 @@
     const safe = (spend, n) => n > 0 ? Math.round(spend / n) : null;
     const wkPerInvited   = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.total));
     const wkPerPresente  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.presentes));
+    const wkPerAprobEnt  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.aprobEnt));
     const wkPerHired     = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.contratados));
 
     // ── M1: Weekly spend ─────────────────────────────────────────────
@@ -1882,14 +1885,19 @@
       }
     });
 
-    // ── M2: Weekly $/candidato ───────────────────────────────────────
-    // Simple line chart options (single Y axis)
+    // Line chart options — values shown on every data point via datalabels
     const lineChartOpts = () => ({
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 24 } },
+      layout: { padding: { top: 32 } },
       plugins: {
         legend: { display: true, position:'bottom', labels:{padding:10,font:{size:11}} },
-        datalabels: { display: ctx => ctx.raw != null, anchor:'top', align:'top', clip:false, color:'#e2e8f0', font:{size:10,weight:'600'}, formatter: v => v != null ? fmtUSD(v) : '' },
+        datalabels: {
+          display: ctx => ctx.raw != null && ctx.raw > 0,
+          anchor: 'top', align: 'top', clip: false,
+          color:  ctx => ctx.dataset.borderColor,
+          font:   { size: 10, weight: '700' },
+          formatter: v => fmtUSD(v)
+        },
         tooltip: { callbacks: { label: ctx => ctx.raw != null ? ` ${ctx.dataset.label}: ${fmtUSD(ctx.raw)}` : '' }}
       },
       scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, ticks:{callback:v=>fmtUSD(v)}, min:0} }
@@ -1905,11 +1913,12 @@
       options: lineChartOpts()
     });
 
-    // ── M3: Weekly $/contratado ──────────────────────────────────────
+    // ── M3: Weekly $/ent.aprobada & $/contratado ────────────────────
     makeChart('mktWeekHiredChart', {
       type: 'line',
       data: { labels: wkLabels, datasets: [
-        { label:'$ / contratado', data: wkPerHired, borderColor:COLORS.green, backgroundColor:COLORS.green+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green, tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / ent. aprobada', data: wkPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / contratado',    data: wkPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
       ]},
       options: lineChartOpts()
     });
@@ -1981,6 +1990,7 @@
     // ── M4: Monthly $/candidato (actual rates, no projection needed) ──
     const moPerInvited  = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.total));
     const moPerPresente = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.presentes));
+    const moPerAprobEnt = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.aprobEnt));
     const moPerHired    = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.contratados));
 
     // ── M5: Monthly $/invitado & $/presente ─────────────────────────
@@ -1993,11 +2003,12 @@
       options: lineChartOpts()
     });
 
-    // ── M6: Monthly $/contratado ─────────────────────────────────────
+    // ── M6: Monthly $/ent.aprobada & $/contratado ────────────────────
     makeChart('mktMonthHiredChart', {
       type: 'line',
       data: { labels: moLabels, datasets: [
-        { label:'$ / contratado', data: moPerHired, borderColor:COLORS.green, backgroundColor:COLORS.green+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green, tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / ent. aprobada', data: moPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / contratado',    data: moPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
       ]},
       options: lineChartOpts()
     });
