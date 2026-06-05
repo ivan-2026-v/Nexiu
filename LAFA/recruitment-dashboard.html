@@ -297,6 +297,7 @@
   <button class="tab-btn" onclick="switchTab('detalle',this)">Detalle Asistencia</button>
   <button class="tab-btn" onclick="switchTab('pipeline',this)">Pipeline Activo</button>
   <button class="tab-btn" onclick="switchTab('backup',this)">Backup</button>
+  <button class="tab-btn" onclick="switchTab('marketing',this)">Marketing</button>
 </div>
 
 <div id="tab-executive" class="tab-content active">
@@ -411,30 +412,30 @@
 
 <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">2M. Tasas de conversión por mes</div>
+    <div class="card-title">8. Tasas de conversión por mes</div>
     <div class="chart-wrap"><canvas id="conversionMonthChart" height="280"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">3M. Candidatos por mes</div>
+    <div class="card-title">9. Candidatos captados por mes</div>
     <div class="chart-wrap"><canvas id="weeklyMonthChart" height="280"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">7M. Contrataciones por mes</div>
+    <div class="card-title">13. Contrataciones por mes</div>
     <div class="chart-wrap"><canvas id="contratacionesMonthChart" height="280"></canvas></div>
   </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">4M. Asistentes por mes</div>
+    <div class="card-title">10. Asistentes por mes</div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPresChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">5M. Entrevistas aprobadas por mes</div>
+    <div class="card-title">11. Entrevistas aprobadas por mes</div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthEntChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">6M. Pruebas de manejo aprobadas por mes</div>
+    <div class="card-title">12. Pruebas de manejo aprobadas por mes</div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPMChart"></canvas></div>
   </div>
 </div>
@@ -743,6 +744,38 @@
 
 </div><!-- /tab-pipeline -->
 
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: MARKETING                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-marketing" class="tab-content">
+
+  <div class="section-label">Inversión semanal</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">M1. Gasto semanal (USD)</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktWeekSpendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">M2. Costo por candidato — semanal</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktWeekCostChart"></canvas></div>
+    </div>
+  </div>
+
+  <hr class="section-sep" />
+  <div class="section-label">Inversión mensual &nbsp;·&nbsp; <span id="mkt-proj-note" style="color:var(--accent);text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">M3. Gasto mensual (USD)</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktMonthSpendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">M4. Costo por candidato — mensual</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktMonthCostChart"></canvas></div>
+    </div>
+  </div>
+
+</div><!-- /tab-marketing -->
+
 <script>
   // ── CONFIG ──────────────────────────────────────────────────────────
   const SUPABASE_URL = 'https://ctbkipgraypohrdeoggv.supabase.co';
@@ -1022,11 +1055,12 @@
     rows.forEach(r => {
       const m = (r.inicio||'').slice(0,7);
       if (!m) return;
-      if (!mMap[m]) mMap[m] = {total:0, presentes:0, aprobEnt:0, aprobPM:0};
+      if (!mMap[m]) mMap[m] = {total:0, presentes:0, aprobEnt:0, aprobPM:0, contrat:0};
       mMap[m].total++;
       if (r.asistencia    === 'Realizada') mMap[m].presentes++;
       if (r.suma_bg       === 'Aprobado')  mMap[m].aprobEnt++;
       if (r.prueba_manejo === 'Aprobado')  mMap[m].aprobPM++;
+      if (r.firma_contrato)                mMap[m].contrat++;
     });
     const firmaMap = {};
     rows.filter(r => r.firma_contrato).forEach(r => {
@@ -1166,15 +1200,16 @@
       }
     });
 
-    // 2M Conversion rates line chart — always divide by actual total (never projected)
+    // 8. Conversion rates line chart — always divide by actual total (never projected)
     const convMonth = months.map(m => {
-      const {total:t, presentes:p, aprobEnt, aprobPM} = mMap[m];
-      return { llego:+pct1(p,t||1), ent:+pct1(aprobEnt,t||1), pm:+pct1(aprobPM,t||1) };
+      const {total:t, presentes:p, aprobEnt, aprobPM, contrat} = mMap[m];
+      return { llego:+pct1(p,t||1), ent:+pct1(aprobEnt,t||1), pm:+pct1(aprobPM,t||1), cont:+pct1(contrat,t||1) };
     });
     makeChart('conversionMonthChart', { type:'line', data:{ labels, datasets:[
       { label:'Llegó a entrevista',   data:convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
       { label:'Aprobó entrevista',    data:convMonth.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
       { label:'Aprobó prueba manejo', data:convMonth.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+      { label:'Contratado',           data:convMonth.map(d=>d.cont),  borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
     ]}, options:{
       layout:{padding:{top:20}},
       plugins:{
@@ -1243,6 +1278,7 @@
     if (name === 'detalle'  && window._allRows) renderDetalleAsistencia(window._allRows);
     if (name === 'pipeline' && window._allRows) renderPipeline(window._allRows);
     if (name === 'backup'   && window._allRows) renderBackup(window._allRows);
+    if (name === 'marketing' && window._allRows && window._adsRows) renderMarketing(window._allRows, window._adsRows);
   }
 
   // ── PIPELINE ACTIVO ──────────────────────────────────────────────────
@@ -1765,6 +1801,223 @@
   };
 
   // ── FETCH + MAIN ─────────────────────────────────────────────────────
+  // ── MARKETING TAB ────────────────────────────────────────────────────
+  let _mktRendered = false;
+  function renderMarketing(rows, adsRows) {
+    if (_mktRendered) return;
+    _mktRendered = true;
+
+    const nowMX       = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Mexico_City'}));
+    const curY        = nowMX.getFullYear();
+    const curMo       = nowMX.getMonth() + 1;
+    const curMonthStr = `${curY}-${String(curMo).padStart(2,'0')}`;
+    const dayOfMonth  = nowMX.getDate();
+    const daysInMonth = new Date(curY, curMo, 0).getDate();
+    const projFactor  = daysInMonth / dayOfMonth;
+
+    const curMonthName = new Date(curY, curMo-1, 1).toLocaleDateString('es-MX', {month:'long'});
+    const noteEl = document.getElementById('mkt-proj-note');
+    if (noteEl) noteEl.textContent =
+      `${curMonthName.charAt(0).toUpperCase()+curMonthName.slice(1)} proyectado al fin de mes (día ${dayOfMonth} de ${daysInMonth})`;
+
+    const monthName = m => {
+      const [y, mo] = m.split('-');
+      return new Date(+y, +mo-1, 1).toLocaleDateString('es-MX', {month:'short', year:'2-digit'});
+    };
+    const fmtUSD = v => v == null ? '' : `$${Math.round(v).toLocaleString()}`;
+
+    // ── Build funnel stats by ISO week ──────────────────────────────
+    const wkFunnel = {};
+    rows.forEach(r => {
+      const w = isoWeek(r.inicio);
+      if (!w) return;
+      if (!wkFunnel[w]) wkFunnel[w] = {total:0, presentes:0, contratados:0};
+      wkFunnel[w].total++;
+      if (r.asistencia    === 'Realizada') wkFunnel[w].presentes++;
+      if (r.firma_contrato)                wkFunnel[w].contratados++;
+    });
+
+    // ── Build ads stats by ISO week & by month ───────────────────────
+    const wkAds = {};    // week# → amount_spent
+    const moAds = {};    // YYYY-MM → amount_spent
+    adsRows.forEach(r => {
+      const w = isoWeek(r.week_start);
+      if (w) wkAds[w] = (wkAds[w] || 0) + (+r.amount_spent || 0);
+      const m = (r.week_start || '').slice(0,7);
+      if (m) moAds[m] = (moAds[m] || 0) + (+r.amount_spent || 0);
+    });
+
+    // Funnel stats by month
+    const moFunnel = {};
+    rows.forEach(r => {
+      const m = (r.inicio||'').slice(0,7);
+      if (!m) return;
+      if (!moFunnel[m]) moFunnel[m] = {total:0, presentes:0, contratados:0};
+      moFunnel[m].total++;
+      if (r.asistencia    === 'Realizada') moFunnel[m].presentes++;
+      if (r.firma_contrato)                moFunnel[m].contratados++;
+    });
+
+    // Shared weeks (have ads data), sorted
+    const adsSortedWeeks = Object.keys(wkAds).map(Number).sort((a,b)=>a-b);
+    const wkLabels = adsSortedWeeks.map(w => `S${w}`);
+    const wkSpend  = adsSortedWeeks.map(w => wkAds[w] || 0);
+
+    // $/candidato metrics per week (null if no funnel data)
+    const safe = (spend, n) => n > 0 ? Math.round(spend / n) : null;
+    const wkPerInvited   = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.total));
+    const wkPerPresente  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.presentes));
+    const wkPerHired     = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.contratados));
+
+    // ── M1: Weekly spend ─────────────────────────────────────────────
+    makeChart('mktWeekSpendChart', {
+      type: 'bar',
+      data: { labels: wkLabels, datasets: [{
+        data: wkSpend,
+        backgroundColor: COLORS.indigo+'bb', borderColor: COLORS.indigo, borderWidth:1, borderRadius:4,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: true, anchor:'end', align:'top', clip:false, color:'#e2e8f0', font:{size:10,weight:'700'}, formatter: v => `$${Math.round(v/1000*10)/10}k` },
+          tooltip: { callbacks: { label: ctx => ` ${fmtUSD(ctx.raw)}` }}
+        },
+        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, ticks:{callback:v=>`$${Math.round(v/1000)}k`}, min:0} }
+      }
+    });
+
+    // ── M2: Weekly $/candidato ───────────────────────────────────────
+    const lineOpts = (yLabel) => ({
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 20 } },
+      plugins: {
+        legend: { display: true, position:'bottom', labels:{padding:10,font:{size:11}} },
+        datalabels: { display: true, anchor:'top', align:'top', clip:false, color:'#e2e8f0', font:{size:10,weight:'600'}, formatter: v => v != null ? fmtUSD(v) : '' },
+        tooltip: { callbacks: { label: ctx => ctx.raw != null ? ` ${ctx.dataset.label}: ${fmtUSD(ctx.raw)}` : '' }}
+      },
+      scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, ticks:{callback:v=>fmtUSD(v)}, min:0} }
+    });
+
+    makeChart('mktWeekCostChart', {
+      type: 'line',
+      data: { labels: wkLabels, datasets: [
+        { label:'$ / invitado',   data: wkPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / presente',  data: wkPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / contratado',data: wkPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+      ]},
+      options: lineOpts('USD')
+    });
+
+    // ── Monthly ──────────────────────────────────────────────────────
+    const allMonths = [...new Set([...Object.keys(moAds), ...Object.keys(moFunnel)])].sort();
+    const moLabels  = allMonths.map(monthName);
+    const moSpend   = allMonths.map(m => moAds[m] || 0);
+    const moExtra   = allMonths.map((m, i) =>
+      m === curMonthStr ? Math.max(0, Math.round(moSpend[i] * projFactor) - moSpend[i]) : 0
+    );
+    const moPrev    = moSpend.map((v, i) => i > 0 ? moSpend[i-1] : null);
+
+    // ── M3: Monthly spend (stacked actual + projected) ───────────────
+    makeChart('mktMonthSpendChart', {
+      type: 'bar',
+      data: { labels: moLabels, datasets: [
+        { label:'Real',       data: moSpend, backgroundColor: COLORS.indigo+'bb', borderColor: COLORS.indigo,      borderWidth:1, borderRadius:4, stack:'st' },
+        { label:'Proyectado', data: moExtra, backgroundColor: COLORS.indigo+'35', borderColor: COLORS.indigo+'70', borderWidth:1,                stack:'st' },
+      ]},
+      plugins: [ makeLabelsPlugin(moSpend, moExtra, moPrev) ],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: false },
+          tooltip: { callbacks: { label: ctx =>
+            ctx.datasetIndex === 0 ? ` Real: ${fmtUSD(ctx.raw)}` : ctx.raw > 0 ? ` Proy. total: ~${fmtUSD(moSpend[ctx.dataIndex]+ctx.raw)}` : ''
+          }}
+        },
+        scales: { x:{grid:{display:false},stacked:true}, y:{grid:{color:'#2e334d'},stacked:true, ticks:{callback:v=>`$${Math.round(v/1000)}k`}, min:0} }
+      }
+    });
+
+    // Override makeLabelsPlugin formatter to show $ amounts
+    const mktSpendPlugin = {
+      id: 'mktSpendLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        ctx.save(); ctx.textAlign = 'center';
+        moSpend.forEach((actual, i) => {
+          const bar0 = meta0.data[i], bar1 = meta1.data[i];
+          if (!bar0) return;
+          if (actual > 0) {
+            ctx.font = '700 11px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+            ctx.fillText(fmtUSD(actual), bar0.x, (bar0.y + bar0.base) / 2);
+          }
+          const ext = moExtra[i] || 0;
+          if (ext > 0 && bar1) {
+            ctx.font = '600 10px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#cbd5e1'; ctx.textBaseline = 'middle';
+            ctx.fillText(`~${fmtUSD(actual+ext)}`, bar1.x, (bar1.y + bar1.base) / 2);
+          }
+          if (i === 0) return;
+          const prev = moPrev[i]; if (!prev) return;
+          const tot = actual + ext;
+          const pct = Math.round((tot - prev) / prev * 100);
+          ctx.font = '700 10px Inter, system-ui, sans-serif';
+          ctx.fillStyle = pct >= 0 ? '#6ee7b7' : '#fca5a5'; ctx.textBaseline = 'bottom';
+          ctx.fillText(`${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`, bar0.x, (ext > 0 && bar1 ? bar1.y : bar0.y) - 4);
+        });
+        ctx.restore();
+      }
+    };
+    // Destroy and recreate with custom plugin
+    makeChart('mktMonthSpendChart', {
+      type: 'bar',
+      data: { labels: moLabels, datasets: [
+        { label:'Real',       data: moSpend, backgroundColor: COLORS.indigo+'bb', borderColor: COLORS.indigo,      borderWidth:1, borderRadius:4, stack:'st' },
+        { label:'Proyectado', data: moExtra, backgroundColor: COLORS.indigo+'35', borderColor: COLORS.indigo+'70', borderWidth:1,                stack:'st' },
+      ]},
+      plugins: [ mktSpendPlugin ],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend: { display: false }, datalabels: { display: false },
+          tooltip: { callbacks: { label: ctx =>
+            ctx.datasetIndex === 0 ? ` Real: ${fmtUSD(ctx.raw)}` : ctx.raw > 0 ? ` Proy. total: ~${fmtUSD(moSpend[ctx.dataIndex]+ctx.raw)}` : ''
+          }}
+        },
+        scales: { x:{grid:{display:false},stacked:true}, y:{grid:{color:'#2e334d'},stacked:true, ticks:{callback:v=>`$${Math.round(v/1000)}k`}, min:0} }
+      }
+    });
+
+    // ── M4: Monthly $/candidato (actual rates, no projection needed) ──
+    const moPerInvited  = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.total));
+    const moPerPresente = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.presentes));
+    const moPerHired    = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.contratados));
+
+    makeChart('mktMonthCostChart', {
+      type: 'line',
+      data: { labels: moLabels, datasets: [
+        { label:'$ / invitado',   data: moPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / presente',  data: moPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+        { label:'$ / contratado',data: moPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+      ]},
+      options: lineOpts('USD')
+    });
+  }
+
+  async function fetchAds() {
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res  = await fetch(`${SUPABASE_URL}/rest/v1/meta_ads_weekly?select=*&order=week_start.asc`, { headers });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }
+
   async function fetchAll() {
     let all = [], from = 0;
     const PAGE = 1000;
@@ -1781,8 +2034,9 @@
   }
 
   async function main() {
-    const rows = await fetchAll();
+    const [rows, adsRows] = await Promise.all([fetchAll(), fetchAds()]);
     window._allRows = rows;
+    window._adsRows = adsRows;
 
     // Update header badge with date range
     if (rows.length) {
