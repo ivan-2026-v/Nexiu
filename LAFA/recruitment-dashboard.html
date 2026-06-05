@@ -294,10 +294,10 @@
 
 <div class="tab-nav">
   <button class="tab-btn active" onclick="switchTab('executive',this)">Executive</button>
+  <button class="tab-btn" onclick="switchTab('marketing',this)">Marketing</button>
   <button class="tab-btn" onclick="switchTab('detalle',this)">Detalle Asistencia</button>
   <button class="tab-btn" onclick="switchTab('pipeline',this)">Pipeline Activo</button>
   <button class="tab-btn" onclick="switchTab('backup',this)">Backup</button>
-  <button class="tab-btn" onclick="switchTab('marketing',this)">Marketing</button>
 </div>
 
 <div id="tab-executive" class="tab-content active">
@@ -927,6 +927,44 @@
     set('kpi-pipeline-sub',   `${listos} listos + ${noFirmado} contrato pendiente`);
   }
 
+  // Canvas-draw plugin: values inside bars + MoM% above — reused across tabs
+  function makeLabelsPlugin(actualVals, extraVals, prevVals, fmtVal) {
+    const fmt = fmtVal || (v => String(v));
+    return {
+      id: 'barLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        ctx.save(); ctx.textAlign = 'center';
+        actualVals.forEach((actual, i) => {
+          const bar0 = meta0.data[i], bar1 = meta1.data[i];
+          if (!bar0) return;
+          if (actual > 0) {
+            ctx.font = '700 12px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+            ctx.fillText(fmt(actual), bar0.x, (bar0.y + bar0.base) / 2);
+          }
+          const ext = extraVals[i] || 0;
+          if (ext > 0 && bar1) {
+            ctx.font = '600 11px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#cbd5e1'; ctx.textBaseline = 'middle';
+            ctx.fillText(`~${fmt(actual + ext)}`, bar1.x, (bar1.y + bar1.base) / 2);
+          }
+          if (i === 0) return;
+          const prev = prevVals[i]; if (!prev) return;
+          const total = actual + ext;
+          const pct = Math.round((total - prev) / prev * 100);
+          ctx.font = '700 10px Inter, system-ui, sans-serif';
+          ctx.fillStyle = pct >= 0 ? '#6ee7b7' : '#fca5a5'; ctx.textBaseline = 'bottom';
+          const barTop = ext > 0 && bar1 ? bar1.y : bar0.y;
+          ctx.fillText(`${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`, bar0.x, barTop - 4);
+        });
+        ctx.restore();
+      }
+    };
+  }
+
   let chartInstances = {};
   function makeChart(id, config) {
     if (chartInstances[id]) chartInstances[id].destroy();
@@ -1082,58 +1120,6 @@
       const pct = Math.round((cur - prev) / prev * 100);
       return `${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`;
     };
-
-    // Single canvas-draw plugin: values inside bars + MoM% above bars
-    // Bypasses chartjs-plugin-datalabels completely — 100% reliable
-    const makeLabelsPlugin = (actualVals, extraVals, prevVals) => ({
-      id: 'barLabels',
-      afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        const meta0 = chart.getDatasetMeta(0);
-        const meta1 = chart.getDatasetMeta(1);
-        ctx.save();
-        ctx.textAlign = 'center';
-
-        actualVals.forEach((actual, i) => {
-          const bar0 = meta0.data[i];
-          const bar1 = meta1.data[i];
-          if (!bar0) return;
-
-          // ── value centered inside actual (solid) bar ─────────────
-          if (actual > 0) {
-            ctx.font = '700 12px Inter, system-ui, sans-serif';
-            ctx.fillStyle = '#ffffff';
-            ctx.textBaseline = 'middle';
-            const cy = (bar0.y + bar0.base) / 2;
-            ctx.fillText(String(actual), bar0.x, cy);
-          }
-
-          // ── ~projected value centered inside projected segment ────
-          const ext = extraVals[i] || 0;
-          if (ext > 0 && bar1) {
-            ctx.font = '600 11px Inter, system-ui, sans-serif';
-            ctx.fillStyle = '#cbd5e1';
-            ctx.textBaseline = 'middle';
-            const cy1 = (bar1.y + bar1.base) / 2;
-            ctx.fillText(`~${actual + ext}`, bar1.x, cy1);
-          }
-
-          // ── MoM% above the full stacked bar ──────────────────────
-          if (i === 0) return;
-          const prev = prevVals[i];
-          if (!prev) return;
-          const total = actual + ext;
-          const pct   = Math.round((total - prev) / prev * 100);
-          ctx.font = '700 10px Inter, system-ui, sans-serif';
-          ctx.fillStyle = pct >= 0 ? '#6ee7b7' : '#fca5a5';
-          ctx.textBaseline = 'bottom';
-          const barTop = ext > 0 && bar1 ? bar1.y : bar0.y;
-          ctx.fillText(`${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`, bar0.x, barTop - 4);
-        });
-
-        ctx.restore();
-      }
-    });
 
     // Stacked bar factory — all labels via canvas, datalabels disabled
     const stackedBar = (actualVals, base, maintainAspectRatio = true) => {
@@ -1859,7 +1845,7 @@
     });
 
     // Shared weeks (have ads data), sorted
-    const adsSortedWeeks = Object.keys(wkAds).map(Number).sort((a,b)=>a-b);
+    const adsSortedWeeks = Object.keys(wkAds).map(Number).sort((a,b)=>a-b).filter(w => w >= 15);
     const wkLabels = adsSortedWeeks.map(w => `S${w}`);
     const wkSpend  = adsSortedWeeks.map(w => wkAds[w] || 0);
 
@@ -1920,28 +1906,7 @@
     const moPrev    = moSpend.map((v, i) => i > 0 ? moSpend[i-1] : null);
 
     // ── M3: Monthly spend (stacked actual + projected) ───────────────
-    makeChart('mktMonthSpendChart', {
-      type: 'bar',
-      data: { labels: moLabels, datasets: [
-        { label:'Real',       data: moSpend, backgroundColor: COLORS.indigo+'bb', borderColor: COLORS.indigo,      borderWidth:1, borderRadius:4, stack:'st' },
-        { label:'Proyectado', data: moExtra, backgroundColor: COLORS.indigo+'35', borderColor: COLORS.indigo+'70', borderWidth:1,                stack:'st' },
-      ]},
-      plugins: [ makeLabelsPlugin(moSpend, moExtra, moPrev) ],
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        layout: { padding: { top: 28 } },
-        plugins: {
-          legend: { display: false },
-          datalabels: { display: false },
-          tooltip: { callbacks: { label: ctx =>
-            ctx.datasetIndex === 0 ? ` Real: ${fmtUSD(ctx.raw)}` : ctx.raw > 0 ? ` Proy. total: ~${fmtUSD(moSpend[ctx.dataIndex]+ctx.raw)}` : ''
-          }}
-        },
-        scales: { x:{grid:{display:false},stacked:true}, y:{grid:{color:'#2e334d'},stacked:true, ticks:{callback:v=>`$${Math.round(v/1000)}k`}, min:0} }
-      }
-    });
-
-    // Override makeLabelsPlugin formatter to show $ amounts
+    // Uses custom plugin with $ formatting
     const mktSpendPlugin = {
       id: 'mktSpendLabels',
       afterDatasetsDraw(chart) {
