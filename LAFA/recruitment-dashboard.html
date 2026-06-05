@@ -1860,8 +1860,9 @@
     const wkSpend  = adsSortedWeeks.map(w => wkAds[w] || 0);
 
     // $/candidato metrics per week (null if no funnel data)
-    const safe = (spend, n) => n > 0 ? Math.round(spend / n) : null;
-    const wkPerInvited   = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.total));
+    const safe  = (spend, n) => n > 0 ? Math.round(spend / n) : null;
+    const safe2 = (spend, n) => n > 0 ? Math.round(spend / n * 100) / 100 : null;  // 2 decimals
+    const wkPerInvited   = adsSortedWeeks.map(w => safe2(wkAds[w], wkFunnel[w]?.total));
     const wkPerPresente  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.presentes));
     const wkPerAprobEnt  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.aprobEnt));
     const wkPerHired     = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.contratados));
@@ -1887,7 +1888,7 @@
 
     // Canvas plugin: draws values above each data point on line charts
     // fmts = optional array of formatters per dataset (falls back to fmtUSD)
-    const fmtUSD1 = v => v == null ? '' : `$${v.toFixed(1)}`;   // 1 decimal
+    const fmtUSD2 = v => v == null ? '' : `$${v.toFixed(2)}`;   // 2 decimals
     const makeLineLabels = (datasets, fmts) => ({
       id: 'lineLabels',
       afterDatasetsDraw(chart) {
@@ -1928,7 +1929,7 @@
       { label:'$ / invitado',  data: wkPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
       { label:'$ / presente', data: wkPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
     ];
-    makeChart('mktWeekCostChart', { type:'line', data:{ labels:wkLabels, datasets:m2ds }, plugins:[makeLineLabels(m2ds, [fmtUSD1, fmtUSD])], options:lineChartOpts() });
+    makeChart('mktWeekCostChart', { type:'line', data:{ labels:wkLabels, datasets:m2ds }, plugins:[makeLineLabels(m2ds, [fmtUSD2, fmtUSD])], options:lineChartOpts() });
 
     // ── M3: Weekly $/ent.aprobada & $/contratado ────────────────────
     const m3ds = [
@@ -2002,7 +2003,7 @@
     });
 
     // ── M4: Monthly $/candidato (actual rates, no projection needed) ──
-    const moPerInvited  = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.total));
+    const moPerInvited  = allMonths.map(m => safe2(moAds[m]||0, moFunnel[m]?.total));
     const moPerPresente = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.presentes));
     const moPerAprobEnt = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.aprobEnt));
     const moPerHired    = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.contratados));
@@ -2012,7 +2013,7 @@
       { label:'$ / invitado',  data: moPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
       { label:'$ / presente', data: moPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
     ];
-    makeChart('mktMonthCostChart', { type:'line', data:{ labels:moLabels, datasets:m5ds }, plugins:[makeLineLabels(m5ds, [fmtUSD1, fmtUSD])], options:lineChartOpts() });
+    makeChart('mktMonthCostChart', { type:'line', data:{ labels:moLabels, datasets:m5ds }, plugins:[makeLineLabels(m5ds, [fmtUSD2, fmtUSD])], options:lineChartOpts() });
 
     // ── M6: Monthly $/ent.aprobada & $/contratado ────────────────────
     const m6ds = [
