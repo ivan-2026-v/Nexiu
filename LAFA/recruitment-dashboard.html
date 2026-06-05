@@ -902,10 +902,32 @@
       options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true }
     });
 
-    renderMonthlyCharts(rows);
+    // ── CONTRATACIONES POR SEMANA ────────────────────────────────────
+    const firmaWeekMap = {};
+    rows.filter(r => r.firma_contrato).forEach(r => {
+      const w = isoWeek(r.firma_contrato);
+      if (w) firmaWeekMap[w] = (firmaWeekMap[w] || 0) + 1;
+    });
+    const firmaWeeks = Object.keys(firmaWeekMap).map(Number).sort((a,b)=>a-b);
+    const firmaVals  = firmaWeeks.map(w => firmaWeekMap[w]);
+    makeChart('contratacionesChart', {
+      type: 'bar',
+      data: { labels: firmaWeeks.map(w=>`S${w}`), datasets:[{
+        label: 'Contratos firmados',
+        data: firmaVals,
+        backgroundColor: COLORS.green+'bb', borderColor: COLORS.green, borderWidth:1, borderRadius:4
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display:false },
+          datalabels: { display:true, anchor:'center', align:'center', color:'#fff', font:{size:12,weight:'700'}, formatter: v => v || '' }
+        },
+        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{stepSize:1}} }
+      }
+    });
 
-    // ── ENTREVISTA DONUT (moved to Backup tab) ───────────────────────
-    // rendered lazily in renderBackup() when tab is activated
+    renderMonthlyCharts(rows);
   }
 
   // ── MONTHLY CHARTS ────────────────────────────────────────────────────
@@ -1066,32 +1088,6 @@
     const razonColors = { 'Sueldo / Bonos / Métricas':COLORS.red, 'Sin especificar':COLORS.slate, 'Horarios':COLORS.yellow, 'No le interesa':COLORS.purple, 'Distancia':COLORS.cyan, 'Otro':COLORS.pink };
     makeChart('declinaChart', { type:'bar', data:{ labels:razonSorted.map(r=>r[0]), datasets:[{ data:razonSorted.map(r=>r[1]), backgroundColor:razonSorted.map(r=>razonColors[r[0]]||COLORS.slate), borderRadius:4 }]},
     options:{ indexAxis:'y', plugins:{legend:{display:false},datalabels:{display:false}}, scales:{x:{grid:{color:'#2e334d'}},y:{grid:{display:false},ticks:{font:{size:11}}}} } });
-  }
-
-    // ── CONTRATACIONES POR SEMANA ────────────────────────────────────
-    const firmaWeekMap = {};
-    rows.filter(r => r.firma_contrato).forEach(r => {
-      const w = isoWeek(r.firma_contrato);
-      if (w) firmaWeekMap[w] = (firmaWeekMap[w] || 0) + 1;
-    });
-    const firmaWeeks = Object.keys(firmaWeekMap).map(Number).sort((a,b)=>a-b);
-    const firmaVals  = firmaWeeks.map(w => firmaWeekMap[w]);
-    makeChart('contratacionesChart', {
-      type: 'bar',
-      data: { labels: firmaWeeks.map(w=>`S${w}`), datasets:[{
-        label: 'Contratos firmados',
-        data: firmaVals,
-        backgroundColor: COLORS.green+'bb', borderColor: COLORS.green, borderWidth:1, borderRadius:4
-      }]},
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display:false },
-          datalabels: { display:true, anchor:'center', align:'center', color:'#fff', font:{size:12,weight:'700'}, formatter: v => v || '' }
-        },
-        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{stepSize:1}} }
-      }
-    });
   }
 
   // ── TAB SWITCHING ────────────────────────────────────────────────────
