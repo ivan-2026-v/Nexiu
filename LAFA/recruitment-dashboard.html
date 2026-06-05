@@ -440,6 +440,20 @@
   </div>
 </div>
 
+<!-- TIEMPO DE CONTRATACIÓN -->
+<hr class="section-sep" />
+<div class="section-label">Tiempo de contratación por cohort semanal</div>
+<div class="card" style="margin-bottom:16px">
+  <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:4px">
+    <div class="card-title" style="margin:0">14. Días promedio: primera entrevista → firma de contrato</div>
+    <span id="hire-avg-global" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+    Cada barra = cohort de la semana de llegada. Solo candidatos con <code>firma_contrato</code> registrada.
+  </div>
+  <div class="chart-wrap" style="height:260px"><canvas id="timeToHireChart"></canvas></div>
+</div>
+
 </div><!-- /tab-executive -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -1073,6 +1087,88 @@
     });
 
     renderMonthlyCharts(rows);
+
+    // ── 14: Time to hire by cohort week ─────────────────────────────
+    const cohortMap = {};
+    rows.forEach(r => {
+      if (!r.inicio || !r.firma_contrato) return;
+      const days = Math.round(
+        (new Date(r.firma_contrato) - new Date(r.inicio)) / 86400000
+      );
+      if (days < 0 || days > 365) return;   // sanity filter
+      const w = isoWeek(r.inicio);
+      if (!w) return;
+      if (!cohortMap[w]) cohortMap[w] = [];
+      cohortMap[w].push(days);
+    });
+
+    const cohortWeeks = Object.keys(cohortMap).map(Number).sort((a,b)=>a-b);
+    const cohortAvg   = cohortWeeks.map(w => {
+      const vals = cohortMap[w];
+      return Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
+    });
+    const cohortMin   = cohortWeeks.map(w => Math.min(...cohortMap[w]));
+    const cohortMax   = cohortWeeks.map(w => Math.max(...cohortMap[w]));
+    const cohortN     = cohortWeeks.map(w => cohortMap[w].length);
+
+    // Overall average
+    const allDays = Object.values(cohortMap).flat();
+    const globalAvg = allDays.length
+      ? Math.round(allDays.reduce((a,b)=>a+b,0) / allDays.length)
+      : null;
+    const avgEl = document.getElementById('hire-avg-global');
+    if (avgEl && globalAvg) avgEl.textContent = `Promedio global: ${globalAvg} días · ${allDays.length} contratos`;
+
+    makeChart('timeToHireChart', {
+      type: 'bar',
+      data: {
+        labels: cohortWeeks.map(w=>`S${w}`),
+        datasets: [
+          {
+            label: 'Días promedio',
+            data: cohortAvg,
+            backgroundColor: cohortAvg.map(d =>
+              d <= 14 ? COLORS.green+'bb' : d <= 30 ? COLORS.yellow+'bb' : COLORS.red+'bb'
+            ),
+            borderColor: cohortAvg.map(d =>
+              d <= 14 ? COLORS.green : d <= 30 ? COLORS.yellow : COLORS.red
+            ),
+            borderWidth: 1, borderRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            display: true, anchor:'end', align:'top', clip:false,
+            color: '#e2e8f0', font:{size:11,weight:'700'},
+            formatter: v => `${v}d`
+          },
+          tooltip: { callbacks: {
+            title: ctx => `Cohort ${ctx[0].label}`,
+            label: ctx => {
+              const i = ctx.dataIndex;
+              return [
+                ` Promedio: ${cohortAvg[i]} días`,
+                ` Mín: ${cohortMin[i]}d · Máx: ${cohortMax[i]}d`,
+                ` Contratos: ${cohortN[i]}`,
+              ];
+            }
+          }}
+        },
+        scales: {
+          x: { grid:{display:false} },
+          y: {
+            grid: {color:'#2e334d'}, min:0,
+            ticks: { callback: v => `${v}d` },
+            title: { display:true, text:'días', color:'#64748b', font:{size:11} }
+          }
+        }
+      }
+    });
   }
 
   // ── MONTHLY CHARTS ────────────────────────────────────────────────────
