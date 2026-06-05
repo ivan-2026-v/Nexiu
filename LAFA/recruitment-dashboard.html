@@ -949,7 +949,7 @@
     const noteEl = document.getElementById('monthly-proj-note');
     const curMonthName = new Date(curY, curMo-1, 1).toLocaleDateString('es-MX', {month:'long'});
     if (noteEl) noteEl.textContent =
-      `${curMonthName.charAt(0).toUpperCase()+curMonthName.slice(1)} proyectado a fin de mes (día ${dayOfMonth} de ${daysInMonth})`;
+      `${curMonthName.charAt(0).toUpperCase()+curMonthName.slice(1)} proyectado al fin de mes (día ${dayOfMonth} de ${daysInMonth})`;
 
     // Build monthly aggregates
     const mMap = {};
@@ -971,102 +971,156 @@
     const months = Object.keys(mMap).sort();
     const labels = months.map(monthName);
 
-    // Effective value: project current month, keep actual for past
-    const effective = (rawVals) => rawVals.map((v, i) =>
-      months[i] === curMonthStr ? Math.round(v * projFactor) : v
+    // projected extra on top of actual for current month
+    const extra = (actual) => months.map((m, i) =>
+      m === curMonthStr ? Math.max(0, Math.round(actual[i] * projFactor) - actual[i]) : 0
     );
 
-    // Datalabels formatter: "312\n▲15%" above each bar
-    const momDL = (effVals, isCurMonth) => ({
-      display: true,
-      anchor: 'end',
-      align: 'end',
-      clip: false,
-      color: '#e2e8f0',
-      font: { size: 11, weight: '700' },
-      padding: { bottom: 2 },
-      formatter: (_, ctx) => {
-        const i   = ctx.dataIndex;
-        const val = effVals[i];
-        if (!val && val !== 0) return '';
-        const prev = i > 0 ? effVals[i - 1] : null;
-        const mom  = prev ? Math.round((val - prev) / prev * 100) : null;
-        const isCur = months[i] === curMonthStr;
-        const valStr = isCur ? `~${val}` : String(val);
-        if (mom === null) return valStr;
-        const arrow = mom >= 0 ? '▲' : '▼';
-        const momStr = `${arrow}${Math.abs(mom)}%`;
-        return [valStr, momStr];
-      }
-    });
+    // MoM growth string
+    const momStr = (cur, prev) => {
+      if (!prev) return null;
+      const pct = Math.round((cur - prev) / prev * 100);
+      return `${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`;
+    };
 
-    // Bar config factory — single dataset, no stacking
-    const barCfg = (id, rawVals, base, maintainAspectRatio = true) => {
-      const effVals = effective(rawVals);
+    /*
+     * stacked bar: dataset0 = actual (solid), dataset1 = projected extra (lighter)
+     * - actual value: centered inside dataset0 bar
+     * - projected total (~N): centered inside dataset1 bar
+     * - MoM %: above the full stacked bar
+     *   • past months → above dataset0 (dataset1 = 0 so its top IS the bar top)
+     *   • current month → above dataset1 (top of stack)
+     */
+    const stackedBar = (actualVals, base, maintainAspectRatio = true) => {
+      const extraVals = extra(actualVals);
+      // for past months MoM, compare against previous month actual
+      const actualPrevMap = actualVals.map((v, i) => i > 0 ? actualVals[i-1] : null);
       return {
         type: 'bar',
-        data: { labels, datasets: [{
-          data: effVals,
-          backgroundColor: months.map(m => m === curMonthStr ? base+'70' : base+'bb'),
-          borderColor: base,
-          borderWidth: months.map(m => m === curMonthStr ? 2 : 1),
-          borderRadius: 4,
-        }]},
+        data: { labels, datasets: [
+          {
+            label: 'Real',
+            data: actualVals,
+            backgroundColor: base+'bb', borderColor: base, borderWidth: 1, borderRadius: 4,
+            stack: 'st',
+            datalabels: {
+              labels: {
+                // value centered inside actual bar
+                val: {
+                  display: ctx => ctx.raw > 0,
+                  anchor: 'center', align: 'center',
+                  color: '#fff', font: { size: 12, weight: '700' },
+                  formatter: v => v,
+                },
+                // MoM% above bar — only for past months (extraVals[i] === 0)
+                mom: {
+                  display: ctx => ctx.raw > 0 && ctx.dataIndex > 0 && extraVals[ctx.dataIndex] === 0,
+                  anchor: 'end', align: 'top', clip: false,
+                  color: '#94a3b8', font: { size: 10, weight: '700' },
+                  padding: { bottom: 2 },
+                  formatter: (v, ctx) => momStr(v, actualPrevMap[ctx.dataIndex]) || '',
+                }
+              }
+            }
+          },
+          {
+            label: 'Proyectado',
+            data: extraVals,
+            backgroundColor: base+'35', borderColor: base+'70', borderWidth: 1,
+            stack: 'st',
+            datalabels: {
+              labels: {
+                // projected total centered inside projected segment
+                val: {
+                  display: ctx => ctx.raw > 0,
+                  anchor: 'center', align: 'center',
+                  color: '#94a3b8', font: { size: 11, weight: '600' },
+                  formatter: (v, ctx) => `~${actualVals[ctx.dataIndex] + v}`,
+                },
+                // MoM% above the stacked bar for current month
+                mom: {
+                  display: ctx => ctx.raw > 0 && ctx.dataIndex > 0,
+                  anchor: 'end', align: 'top', clip: false,
+                  color: '#94a3b8', font: { size: 10, weight: '700' },
+                  padding: { bottom: 2 },
+                  formatter: (v, ctx) => {
+                    const i = ctx.dataIndex;
+                    const projTotal = actualVals[i] + v;
+                    return momStr(projTotal, actualPrevMap[i]) || '';
+                  }
+                }
+              }
+            }
+          }
+        ]},
         options: {
           responsive: true, maintainAspectRatio,
-          layout: { padding: { top: 36 } },
+          layout: { padding: { top: 32 } },
           plugins: {
             legend: { display: false },
-            datalabels: momDL(effVals),
             tooltip: { callbacks: { label: ctx => {
               const i = ctx.dataIndex;
               const isCur = months[i] === curMonthStr;
-              return isCur ? ` Proyectado: ~${ctx.raw}` : ` ${ctx.raw}`;
+              if (ctx.datasetIndex === 0) return ` Real: ${ctx.raw}`;
+              return isCur ? ` Proy. total: ~${actualVals[i] + ctx.raw}` : '';
             }}}
           },
-          scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, min:0} }
+          scales: {
+            x: { grid:{display:false}, stacked: true },
+            y: { grid:{color:'#2e334d'}, stacked: true, min: 0 }
+          }
         }
       };
     };
 
-    makeChart('weeklyMonthChart',        barCfg('weeklyMonthChart',        months.map(m=>mMap[m].total),     COLORS.indigo));
-    makeChart('monthPresChart',          barCfg('monthPresChart',          months.map(m=>mMap[m].presentes), COLORS.cyan,   false));
-    makeChart('monthEntChart',           barCfg('monthEntChart',           months.map(m=>mMap[m].aprobEnt),  COLORS.green,  false));
-    makeChart('monthPMChart',            barCfg('monthPMChart',            months.map(m=>mMap[m].aprobPM),   COLORS.yellow, false));
+    makeChart('weeklyMonthChart', stackedBar(months.map(m=>mMap[m].total),     COLORS.indigo));
+    makeChart('monthPresChart',   stackedBar(months.map(m=>mMap[m].presentes), COLORS.cyan,   false));
+    makeChart('monthEntChart',    stackedBar(months.map(m=>mMap[m].aprobEnt),  COLORS.green,  false));
+    makeChart('monthPMChart',     stackedBar(months.map(m=>mMap[m].aprobPM),   COLORS.yellow, false));
 
-    // Contrataciones — keyed on firma_contrato
-    const firmaMonths  = [...new Set([...months, ...Object.keys(firmaMap)])].sort();
-    const firmaRaw     = firmaMonths.map(m => firmaMap[m] || 0);
-    const firmaEff     = firmaRaw.map((v, i) => firmaMonths[i] === curMonthStr ? Math.round(v * projFactor) : v);
-    const firmaLabels2 = firmaMonths.map(monthName);
+    // Contrataciones — keyed on firma_contrato date
+    const firmaMonths = [...new Set([...months, ...Object.keys(firmaMap)])].sort();
+    const firmaLabels = firmaMonths.map(monthName);
+    const firmaActual = firmaMonths.map(m => firmaMap[m] || 0);
+    const firmaExtra  = firmaMonths.map((m, i) =>
+      m === curMonthStr ? Math.max(0, Math.round(firmaActual[i] * projFactor) - firmaActual[i]) : 0
+    );
+    const firmaPrev   = firmaActual.map((v, i) => i > 0 ? firmaActual[i-1] : null);
     makeChart('contratacionesMonthChart', {
       type: 'bar',
-      data: { labels: firmaLabels2, datasets: [{
-        data: firmaEff,
-        backgroundColor: firmaMonths.map(m => m === curMonthStr ? COLORS.green+'70' : COLORS.green+'bb'),
-        borderColor: COLORS.green, borderWidth: 1, borderRadius: 4,
-      }]},
+      data: { labels: firmaLabels, datasets: [
+        {
+          label: 'Real',
+          data: firmaActual,
+          backgroundColor: COLORS.green+'bb', borderColor: COLORS.green, borderWidth: 1, borderRadius: 4,
+          stack: 'st',
+          datalabels: { labels: {
+            val: { display: ctx => ctx.raw > 0, anchor:'center', align:'center', color:'#fff', font:{size:12,weight:'700'}, formatter: v => v },
+            mom: { display: ctx => ctx.raw > 0 && ctx.dataIndex > 0 && firmaExtra[ctx.dataIndex] === 0,
+              anchor:'end', align:'top', clip:false, color:'#94a3b8', font:{size:10,weight:'700'}, padding:{bottom:2},
+              formatter: (v, ctx) => momStr(v, firmaPrev[ctx.dataIndex]) || '' }
+          }}
+        },
+        {
+          label: 'Proyectado',
+          data: firmaExtra,
+          backgroundColor: COLORS.green+'35', borderColor: COLORS.green+'70', borderWidth: 1,
+          stack: 'st',
+          datalabels: { labels: {
+            val: { display: ctx => ctx.raw > 0, anchor:'center', align:'center', color:'#94a3b8', font:{size:11,weight:'600'}, formatter: (v, ctx) => `~${firmaActual[ctx.dataIndex] + v}` },
+            mom: { display: ctx => ctx.raw > 0 && ctx.dataIndex > 0, anchor:'end', align:'top', clip:false, color:'#94a3b8', font:{size:10,weight:'700'}, padding:{bottom:2},
+              formatter: (v, ctx) => { const i=ctx.dataIndex; return momStr(firmaActual[i]+v, firmaPrev[i]) || ''; } }
+          }}
+        }
+      ]},
       options: {
         responsive: true, maintainAspectRatio: true,
-        layout: { padding: { top: 36 } },
+        layout: { padding: { top: 32 } },
         plugins: {
           legend: { display: false },
-          datalabels: {
-            display: true, anchor:'end', align:'end', clip:false,
-            color:'#e2e8f0', font:{size:11,weight:'700'}, padding:{bottom:2},
-            formatter: (_, ctx) => {
-              const i = ctx.dataIndex;
-              const val = firmaEff[i];
-              const prev = i > 0 ? firmaEff[i-1] : null;
-              const mom  = prev ? Math.round((val - prev) / prev * 100) : null;
-              const isCur = firmaMonths[i] === curMonthStr;
-              const valStr = isCur ? `~${val}` : String(val);
-              if (mom === null) return valStr;
-              return [valStr, `${mom >= 0 ? '▲' : '▼'}${Math.abs(mom)}%`];
-            }
-          }
+          tooltip: { callbacks: { label: ctx => ctx.datasetIndex===0 ? ` Real: ${ctx.raw}` : ` Proy. total: ~${firmaActual[ctx.dataIndex]+ctx.raw}` }}
         },
-        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, min:0} }
+        scales: { x:{grid:{display:false},stacked:true}, y:{grid:{color:'#2e334d'},stacked:true,min:0} }
       }
     });
 
@@ -1074,24 +1128,20 @@
     const convMonth = months.map(m => {
       const {total:t, presentes:p, aprobEnt, aprobPM} = mMap[m];
       const effT = m === curMonthStr ? Math.round(t * projFactor) : t;
-      return {
-        llego: +pct1(p,        effT || 1),
-        ent:   +pct1(aprobEnt, effT || 1),
-        pm:    +pct1(aprobPM,  effT || 1),
-      };
+      return { llego:+pct1(p,effT||1), ent:+pct1(aprobEnt,effT||1), pm:+pct1(aprobPM,effT||1) };
     });
     makeChart('conversionMonthChart', { type:'line', data:{ labels, datasets:[
-      { label:'Llegó a entrevista',   data: convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
-      { label:'Aprobó entrevista',    data: convMonth.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
-      { label:'Aprobó prueba manejo', data: convMonth.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+      { label:'Llegó a entrevista',   data:convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
+      { label:'Aprobó entrevista',    data:convMonth.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
+      { label:'Aprobó prueba manejo', data:convMonth.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
     ]}, options:{
-      layout: { padding: { top: 20 } },
+      layout:{padding:{top:20}},
       plugins:{
         legend:{position:'bottom',labels:{padding:10,font:{size:11}}},
-        datalabels:{display:true, anchor:'top', align:'top', clip:false, font:{size:10,weight:'600'}, color:'#e2e8f0', formatter:(v,ctx)=>v>0?v+'%':''},
+        datalabels:{display:true,anchor:'top',align:'top',clip:false,font:{size:10,weight:'600'},color:'#e2e8f0',formatter:(v)=>v>0?v+'%':''},
         tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}
       },
-      scales:{ x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} },
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0}},
       responsive:true
     }});
   }
