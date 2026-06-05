@@ -287,6 +287,7 @@
   <button class="tab-btn active" onclick="switchTab('executive',this)">Executive</button>
   <button class="tab-btn" onclick="switchTab('detalle',this)">Detalle Asistencia</button>
   <button class="tab-btn" onclick="switchTab('pipeline',this)">Pipeline Activo</button>
+  <button class="tab-btn" onclick="switchTab('backup',this)">Backup</button>
 </div>
 
 <div id="tab-executive" class="tab-content active">
@@ -382,10 +383,51 @@
   </div>
 </div>
 
+<!-- ── MONTHLY CHARTS ─────────────────────────────────────────────────── -->
+<hr class="section-sep" />
+<div class="section-label">Visión mensual &nbsp;·&nbsp; <span id="monthly-proj-note" style="color:var(--accent);text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+
+<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">2M. Tasas de conversión por mes</div>
+    <div class="chart-wrap"><canvas id="conversionMonthChart" height="280"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">3M. Candidatos por mes</div>
+    <div class="chart-wrap"><canvas id="weeklyMonthChart" height="280"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">7M. Contrataciones por mes</div>
+    <div class="chart-wrap"><canvas id="contratacionesMonthChart" height="280"></canvas></div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">4M. Asistentes por mes</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="monthPresChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">5M. Entrevistas aprobadas por mes</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="monthEntChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">6M. Pruebas de manejo aprobadas por mes</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="monthPMChart"></canvas></div>
+  </div>
+</div>
+
+</div><!-- /tab-executive -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: BACKUP                                                        -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-backup" class="tab-content">
+
 <!-- ENTREVISTA + DETALLE NO APROBADOS -->
 <div class="grid-2">
   <div class="card">
-    <div class="card-title">8. Resultado de entrevistas (263 presentes)</div>
+    <div class="card-title">8. Resultado de entrevistas</div>
     <div class="chart-wrap" style="max-width:340px;margin:0 auto">
       <canvas id="entrevistaChart" height="280"></canvas>
     </div>
@@ -585,7 +627,7 @@
   </div>
 </div>
 
-</div><!-- /tab-executive -->
+</div><!-- /tab-backup -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- TAB: DETALLE ASISTENCIA                                            -->
@@ -860,58 +902,171 @@
       options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true }
     });
 
-    // ── ENTREVISTA DONUT ─────────────────────────────────────────────
+    renderMonthlyCharts(rows);
+
+    // ── ENTREVISTA DONUT (moved to Backup tab) ───────────────────────
+    // rendered lazily in renderBackup() when tab is activated
+  }
+
+  // ── MONTHLY CHARTS ────────────────────────────────────────────────────
+  function renderMonthlyCharts(rows) {
+    const nowMX = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Mexico_City'}));
+    const curY  = nowMX.getFullYear();
+    const curMo = nowMX.getMonth() + 1;
+    const curMonthStr  = `${curY}-${String(curMo).padStart(2,'0')}`;
+    const dayOfMonth   = nowMX.getDate();
+    const daysInMonth  = new Date(curY, curMo, 0).getDate();
+    const projFactor   = daysInMonth / dayOfMonth;
+
+    const monthName = m => {
+      const [y, mo] = m.split('-');
+      return new Date(+y, +mo-1, 1).toLocaleDateString('es-MX', {month:'short', year:'2-digit'});
+    };
+
+    // note in header
+    const noteEl = document.getElementById('monthly-proj-note');
+    const curMonthName = new Date(curY, curMo-1, 1).toLocaleDateString('es-MX', {month:'long'});
+    if (noteEl) noteEl.textContent =
+      `${curMonthName.charAt(0).toUpperCase()+curMonthName.slice(1)} proyectado a fin de mes (día ${dayOfMonth} de ${daysInMonth})`;
+
+    // ── Build monthly aggregates (by inicio date) ────────────────────
+    const mMap = {};
+    rows.forEach(r => {
+      const m = (r.inicio||'').slice(0,7);
+      if (!m) return;
+      if (!mMap[m]) mMap[m] = {total:0, presentes:0, aprobEnt:0, aprobPM:0};
+      mMap[m].total++;
+      if (r.asistencia    === 'Realizada') mMap[m].presentes++;
+      if (r.suma_bg       === 'Aprobado')  mMap[m].aprobEnt++;
+      if (r.prueba_manejo === 'Aprobado')  mMap[m].aprobPM++;
+    });
+
+    // Contrataciones use firma_contrato date
+    const firmaMap = {};
+    rows.filter(r => r.firma_contrato).forEach(r => {
+      const m = r.firma_contrato.slice(0,7);
+      firmaMap[m] = (firmaMap[m]||0) + 1;
+    });
+
+    const months = Object.keys(mMap).sort();
+    const labels = months.map(monthName);
+
+    // For current month: actual bars + projected "extra" stacked on top
+    const proj   = (val, m) => m === curMonthStr ? Math.max(0, Math.round(val*projFactor) - val) : 0;
+
+    const barOpts = (extra={}) => ({
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { display: true, position:'bottom', labels:{padding:10, font:{size:11}, color:'#e2e8f0'} },
+        datalabels: { display: false },
+        tooltip: { callbacks: { label: ctx => {
+          const label = ctx.dataset.label || '';
+          return label.includes('Proyec') ? ` Proyectado total: ${ctx.raw + (ctx.chart.data.datasets[0].data[ctx.dataIndex]||0)}` : ` ${label}: ${ctx.raw}`;
+        }}}
+      },
+      scales: { x:{grid:{display:false}, stacked:true}, y:{grid:{color:'#2e334d'}, stacked:true, min:0} },
+      ...extra
+    });
+
+    const projColor = c => c.replace(/bb$|80$/, '') + '40';
+
+    // ── 3M Candidatos ────────────────────────────────────────────────
+    makeChart('weeklyMonthChart', { type:'bar', data:{ labels, datasets:[
+      { label:'Captados', data: months.map(m=>mMap[m].total), backgroundColor:COLORS.indigo+'bb', borderColor:COLORS.indigo, borderWidth:1, borderRadius:4, stack:'s' },
+      { label:'Proyectado',   data: months.map(m=>proj(mMap[m].total,m)), backgroundColor:COLORS.indigo+'35', borderColor:COLORS.indigo+'70', borderWidth:1, borderDash:[4,3], stack:'s' },
+    ]}, options: barOpts() });
+
+    // ── 4M Asistentes ────────────────────────────────────────────────
+    makeChart('monthPresChart', { type:'bar', data:{ labels, datasets:[
+      { label:'Asistentes', data: months.map(m=>mMap[m].presentes), backgroundColor:COLORS.cyan+'bb', borderColor:COLORS.cyan, borderWidth:1, borderRadius:4, stack:'s' },
+      { label:'Proyectado', data: months.map(m=>proj(mMap[m].presentes,m)), backgroundColor:COLORS.cyan+'35', borderColor:COLORS.cyan+'70', borderWidth:1, stack:'s' },
+    ]}, options: barOpts({maintainAspectRatio:false}) });
+
+    // ── 5M Entrevistas aprobadas ─────────────────────────────────────
+    makeChart('monthEntChart', { type:'bar', data:{ labels, datasets:[
+      { label:'Aprobaron entrevista', data: months.map(m=>mMap[m].aprobEnt), backgroundColor:COLORS.green+'bb', borderColor:COLORS.green, borderWidth:1, borderRadius:4, stack:'s' },
+      { label:'Proyectado', data: months.map(m=>proj(mMap[m].aprobEnt,m)), backgroundColor:COLORS.green+'35', borderColor:COLORS.green+'70', borderWidth:1, stack:'s' },
+    ]}, options: barOpts({maintainAspectRatio:false}) });
+
+    // ── 6M Prueba de manejo ──────────────────────────────────────────
+    makeChart('monthPMChart', { type:'bar', data:{ labels, datasets:[
+      { label:'Aprobaron PM', data: months.map(m=>mMap[m].aprobPM), backgroundColor:COLORS.yellow+'bb', borderColor:COLORS.yellow, borderWidth:1, borderRadius:4, stack:'s' },
+      { label:'Proyectado', data: months.map(m=>proj(mMap[m].aprobPM,m)), backgroundColor:COLORS.yellow+'35', borderColor:COLORS.yellow+'70', borderWidth:1, stack:'s' },
+    ]}, options: barOpts({maintainAspectRatio:false}) });
+
+    // ── 7M Contrataciones ────────────────────────────────────────────
+    const firmaMonths = [...new Set([...months, ...Object.keys(firmaMap)])].sort();
+    const firmaLabels = firmaMonths.map(monthName);
+    makeChart('contratacionesMonthChart', { type:'bar', data:{ labels:firmaLabels, datasets:[
+      { label:'Contratos firmados', data: firmaMonths.map(m=>firmaMap[m]||0), backgroundColor:COLORS.green+'bb', borderColor:COLORS.green, borderWidth:1, borderRadius:4, stack:'s' },
+      { label:'Proyectado', data: firmaMonths.map(m=>proj(firmaMap[m]||0,m)), backgroundColor:COLORS.green+'35', borderColor:COLORS.green+'70', borderWidth:1, stack:'s' },
+    ]}, options: barOpts() });
+
+    // ── 2M Tasas de conversión por mes ───────────────────────────────
+    const convMonth = months.map(m => {
+      const {total:t, presentes:p, aprobEnt, aprobPM} = mMap[m];
+      const isCur = m === curMonthStr;
+      const scale = isCur ? projFactor : 1;
+      return {
+        llego: +pct1(p,   t*scale > 0 ? t*scale : t),   // pct uses projected total as denominator
+        ent:   +pct1(aprobEnt,   t*scale > 0 ? t*scale : t),
+        pm:    +pct1(aprobPM,    t*scale > 0 ? t*scale : t),
+        isCur,
+      };
+    });
+    makeChart('conversionMonthChart', { type:'line', data:{ labels, datasets:[
+      { label:'Llegó a entrevista',   data: convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
+      { label:'Aprobó entrevista',    data: convMonth.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
+      { label:'Aprobó prueba manejo', data: convMonth.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+    ]}, options:{ plugins:{ legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true } });
+  }
+
+  // ── BACKUP TAB ────────────────────────────────────────────────────────
+  let _backupRendered = false;
+  function renderBackup(rows) {
+    if (_backupRendered) return;
+    _backupRendered = true;
+    const presentes = rows.filter(r => r.asistencia === 'Realizada');
+
+    // ENTREVISTA DONUT ────────────────────────────────────────────────
     const aprobBG    = presentes.filter(r => r.suma_bg === 'Aprobado').length;
     const noAprobEnt = presentes.filter(r => r.estado_entrevista === 'No aprobado').length;
     const seRetiro   = presentes.filter(r => r.estado_entrevista === 'Se retiró').length;
     const sinEstado  = presentes.filter(r => !r.estado_entrevista).length;
     const declinoEnt = presentes.filter(r => r.estado_entrevista === 'Declinó oferta').length;
     const bgFallo    = presentes.filter(r => r.estado_entrevista === 'Aprobado' && r.suma_bg === 'No aprobado').length;
-    const donutLabels = [
-      `Aprobado entrev+BG (${aprobBG})`, `No aprobado (${noAprobEnt})`, `Se retiró (${seRetiro})`,
-      `Sin estado / pendiente (${sinEstado})`, `Declinó en entrevista (${declinoEnt})`, `BG reprobado (${bgFallo})`
-    ];
-    makeChart('entrevistaChart', {
-      type: 'doughnut',
-      data: { labels: donutLabels, datasets: [{ data:[aprobBG,noAprobEnt,seRetiro,sinEstado,declinoEnt,bgFallo], backgroundColor:[COLORS.green,COLORS.red,COLORS.slate,COLORS.yellow,COLORS.purple,COLORS.pink], borderWidth:2, borderColor:'#1a1d27' }] },
-      options: { cutout:'60%', plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{color:'#fff',font:{weight:'bold',size:12},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); const p=Math.round(v/t*100); return p<3?'':p+'%'; }} }, responsive:true }
-    });
+    makeChart('entrevistaChart', { type:'doughnut', data:{ labels:[
+      `Aprobado entrev+BG (${aprobBG})`,`No aprobado (${noAprobEnt})`,`Se retiró (${seRetiro})`,
+      `Sin estado / pendiente (${sinEstado})`,`Declinó en entrevista (${declinoEnt})`,`BG reprobado (${bgFallo})`
+    ], datasets:[{ data:[aprobBG,noAprobEnt,seRetiro,sinEstado,declinoEnt,bgFallo], backgroundColor:[COLORS.green,COLORS.red,COLORS.slate,COLORS.yellow,COLORS.purple,COLORS.pink], borderWidth:2, borderColor:'#1a1d27' }]},
+    options:{ cutout:'60%', plugins:{ legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{color:'#fff',font:{weight:'bold',size:12},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); const p=Math.round(v/t*100); return p<3?'':p+'%'; }} }, responsive:true } });
 
-    // ── PRUEBA MANEJO DONUT ──────────────────────────────────────────
+    // PRUEBA MANEJO DONUT ─────────────────────────────────────────────
     const conPrueba  = rows.filter(r => r.prueba_manejo);
     const pmAprobado = conPrueba.filter(r => r.prueba_manejo === 'Aprobado').length;
     const pmNoAprob  = conPrueba.filter(r => r.prueba_manejo === 'No aprobado').length;
     const pmSin      = conPrueba.filter(r => r.prueba_manejo === 'Sin prueba de manejo').length;
     const pmDeclino  = conPrueba.filter(r => r.prueba_manejo === 'Declinó proceso').length;
-    makeChart('pruebaDonutChart', {
-      type: 'doughnut',
-      data: { labels:[`Aprobado (${pmAprobado})`,`No aprobado (${pmNoAprob})`,`Sin prueba (${pmSin})`,`Declinó proceso (${pmDeclino})`], datasets:[{ data:[pmAprobado,pmNoAprob,pmSin,pmDeclino], backgroundColor:[COLORS.green,COLORS.red,COLORS.slate,COLORS.yellow], borderWidth:2, borderColor:'#1a1d27' }] },
-      options: { cutout:'60%', plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{color:'#fff',font:{weight:'bold',size:12},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); const p=Math.round(v/t*100); return p<3?'':p+'%'; }} } }
-    });
+    makeChart('pruebaDonutChart', { type:'doughnut', data:{ labels:[`Aprobado (${pmAprobado})`,`No aprobado (${pmNoAprob})`,`Sin prueba (${pmSin})`,`Declinó proceso (${pmDeclino})`], datasets:[{ data:[pmAprobado,pmNoAprob,pmSin,pmDeclino], backgroundColor:[COLORS.green,COLORS.red,COLORS.slate,COLORS.yellow], borderWidth:2, borderColor:'#1a1d27' }]},
+    options:{ cutout:'60%', plugins:{ legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{color:'#fff',font:{weight:'bold',size:12},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); const p=Math.round(v/t*100); return p<3?'':p+'%'; }} } } });
 
-    // ── STATUS DRIVER ────────────────────────────────────────────────
+    // STATUS DRIVER ───────────────────────────────────────────────────
     const statusMap = counter(presentes, r => r.status_driver || 'Sin status asignado');
     const statusOrder = ['Rechazado','Contratado','Declinó oferta','Listo para onboarding','Sin status asignado','Contrato no firmado','Declinó proceso','En espera','No llegó a onboarding'];
     const statusColors = [COLORS.red,COLORS.green,COLORS.yellow,COLORS.cyan,'#4b5563',COLORS.purple,COLORS.slate,COLORS.slate,COLORS.pink];
     const statusLabels = statusOrder.filter(k => statusMap[k]);
-    const statusVals   = statusLabels.map(k => statusMap[k]);
     const statusColFilt= statusOrder.map((k,i)=>({k,c:statusColors[i]})).filter(x=>statusMap[x.k]).map(x=>x.c);
-    makeChart('statusDriverChart', {
-      type: 'bar',
-      data: { labels: statusLabels, datasets:[{ data:statusVals, backgroundColor:statusColFilt, borderRadius:4 }] },
-      options: { indexAxis:'y', plugins:{legend:{display:false},datalabels:{display:false}}, scales:{x:{grid:{color:'#2e334d'}},y:{grid:{display:false},ticks:{font:{size:11}}}}, responsive:true }
-    });
+    makeChart('statusDriverChart', { type:'bar', data:{ labels:statusLabels, datasets:[{ data:statusLabels.map(k=>statusMap[k]), backgroundColor:statusColFilt, borderRadius:4 }]},
+    options:{ indexAxis:'y', plugins:{legend:{display:false},datalabels:{display:false}}, scales:{x:{grid:{color:'#2e334d'}},y:{grid:{display:false},ticks:{font:{size:11}}}}, responsive:true } });
 
-    // ── RAZONES DECLINA ──────────────────────────────────────────────
+    // RAZONES DECLINA ─────────────────────────────────────────────────
     const declinados = rows.filter(r => r.declina_oferta === 'Sí');
     const razonMap = counter(declinados, normalizaRazon);
     const razonSorted = Object.entries(razonMap).sort((a,b)=>b[1]-a[1]);
     const razonColors = { 'Sueldo / Bonos / Métricas':COLORS.red, 'Sin especificar':COLORS.slate, 'Horarios':COLORS.yellow, 'No le interesa':COLORS.purple, 'Distancia':COLORS.cyan, 'Otro':COLORS.pink };
-    makeChart('declinaChart', {
-      type: 'bar',
-      data: { labels: razonSorted.map(r=>r[0]), datasets:[{ data:razonSorted.map(r=>r[1]), backgroundColor:razonSorted.map(r=>razonColors[r[0]]||COLORS.slate), borderRadius:4 }] },
-      options: { indexAxis:'y', plugins:{legend:{display:false},datalabels:{display:false}}, scales:{x:{grid:{color:'#2e334d'}},y:{grid:{display:false},ticks:{font:{size:11}}}} }
-    });
+    makeChart('declinaChart', { type:'bar', data:{ labels:razonSorted.map(r=>r[0]), datasets:[{ data:razonSorted.map(r=>r[1]), backgroundColor:razonSorted.map(r=>razonColors[r[0]]||COLORS.slate), borderRadius:4 }]},
+    options:{ indexAxis:'y', plugins:{legend:{display:false},datalabels:{display:false}}, scales:{x:{grid:{color:'#2e334d'}},y:{grid:{display:false},ticks:{font:{size:11}}}} } });
+  }
 
     // ── CONTRATACIONES POR SEMANA ────────────────────────────────────
     const firmaWeekMap = {};
@@ -947,6 +1102,7 @@
     btn.classList.add('active');
     if (name === 'detalle'  && window._allRows) renderDetalleAsistencia(window._allRows);
     if (name === 'pipeline' && window._allRows) renderPipeline(window._allRows);
+    if (name === 'backup'   && window._allRows) renderBackup(window._allRows);
   }
 
   // ── PIPELINE ACTIVO ──────────────────────────────────────────────────
