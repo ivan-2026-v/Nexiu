@@ -3,7 +3,7 @@
 Daily sync agent:
   1. Logs into https://lafa-nexiu-os-production.up.railway.app/workflow via Google OAuth
   2. Exports data from 2026-04-01 to today using "Rango de días" mode
-  3. Saves the .xlsx to /Users/ivan/Code/vibe-coding/nexiu/LAFA/
+  3. Saves the .xlsx to /Users/ivan/Code/business/nexiu/operations/operations/recruitment-dashboard/
   4. Uploads to Supabase via upload_to_supabase.py
 
 Usage:
@@ -24,7 +24,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 RAILWAY_URL   = "https://lafa-nexiu-os-production.up.railway.app/workflow"
 GOOGLE_EMAIL  = "i@nexiu.ai"
 GOOGLE_PASS   = "kjWgvRgpe%$42P"
-DOWNLOAD_DIR  = Path("/Users/ivan/Code/vibe-coding/nexiu/LAFA")
+DOWNLOAD_DIR  = Path("/Users/ivan/Code/business/nexiu/operations/operations/recruitment-dashboard")
 UPLOAD_SCRIPT = DOWNLOAD_DIR / "upload_to_supabase.py"
 START_DATE    = "2026-04-01"   # Always April 1st
 SENTINEL_FILE    = DOWNLOAD_DIR / ".last_sync_date"   # tracks "already ran today"

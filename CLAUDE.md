@@ -17,7 +17,7 @@ Railway app (lafa-nexiu-os-production.up.railway.app)
     │                     selects "Rango de días" 2026-04-01 → today,
     │                     downloads .xlsx
     ▼
-/Users/ivan/Code/vibe-coding/nexiu/LAFA/
+/Users/ivan/Code/business/nexiu/operations/operations/recruitment-dashboard/
     hr_os_funnel_Rango_…_Nexiu_YYYY-MM-DD.xlsx
     │
     │  upload_to_supabase.py
@@ -71,7 +71,7 @@ launchctl load   ~/Library/LaunchAgents/com.nexiu.lafa.sync.plist
 launchctl start com.nexiu.lafa.sync
 
 # Watch the log
-tail -f /Users/ivan/Code/vibe-coding/nexiu/LAFA/sync_railway.log
+tail -f /Users/ivan/Code/business/nexiu/operations/operations/recruitment-dashboard/sync_railway.log
 ```
 
 Plist location: `~/Library/LaunchAgents/com.nexiu.lafa.sync.plist`  

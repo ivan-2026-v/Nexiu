@@ -10,7 +10,7 @@ Railway app  (lafa-nexiu-os-production.up.railway.app)
     │
     │  sync_railway.py   ← Playwright, Google OAuth, descarga .xlsx
     ▼
-/Users/ivan/Code/vibe-coding/nexiu/LAFA/
+/Users/ivan/Code/business/nexiu/operations/operations/recruitment-dashboard/
     hr_os_funnel_Rango_…_Nexiu_YYYY-MM-DD.xlsx
     │
     │  upload_to_supabase.py   ← upsert, nulls stripped, synced_at stamp
@@ -67,7 +67,7 @@ launchctl load   ~/Library/LaunchAgents/com.nexiu.lafa.sync.plist
 launchctl start com.nexiu.lafa.sync
 
 # Ver log en tiempo real
-tail -f /Users/ivan/Code/vibe-coding/nexiu/LAFA/sync_railway.log
+tail -f /Users/ivan/Code/business/nexiu/operations/operations/recruitment-dashboard/sync_railway.log
 ```
 
 ---
