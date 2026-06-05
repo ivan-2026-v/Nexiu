@@ -1119,14 +1119,52 @@
     const avgEl = document.getElementById('hire-avg-global');
     if (avgEl && globalAvg) avgEl.textContent = `Promedio global: ${globalAvg} días · ${allDays.length} contratos`;
 
+    const tthLabels = cohortWeeks.map(w=>`S${w}`);
+
+    // Canvas plugin: draw "Xd" above bars AND count inside bars
+    const tthPlugin = {
+      id: 'tthLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const metaBar  = chart.getDatasetMeta(0);
+        const metaLine = chart.getDatasetMeta(1);
+        ctx.save(); ctx.textAlign = 'center';
+
+        cohortAvg.forEach((avg, i) => {
+          const bar = metaBar.data[i];
+          if (!bar) return;
+          // days above bar
+          ctx.font = '700 11px Inter, system-ui, sans-serif';
+          ctx.fillStyle = '#e2e8f0'; ctx.textBaseline = 'bottom';
+          ctx.fillText(`${avg}d`, bar.x, bar.y - 4);
+          // count inside bar
+          ctx.font = '600 10px Inter, system-ui, sans-serif';
+          ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'middle';
+          const cy = (bar.y + bar.base) / 2;
+          if (bar.base - bar.y > 14) ctx.fillText(`n=${cohortN[i]}`, bar.x, cy);
+        });
+
+        // count labels above line points
+        ctx.font = '700 10px Inter, system-ui, sans-serif';
+        ctx.fillStyle = COLORS.cyan; ctx.textBaseline = 'bottom';
+        cohortN.forEach((n, i) => {
+          const pt = metaLine.data[i];
+          if (pt) ctx.fillText(n, pt.x, pt.y - 5);
+        });
+
+        ctx.restore();
+      }
+    };
+
     makeChart('timeToHireChart', {
       type: 'bar',
       data: {
-        labels: cohortWeeks.map(w=>`S${w}`),
+        labels: tthLabels,
         datasets: [
           {
-            label: 'Días promedio',
+            label: 'Días promedio (izq.)',
             data: cohortAvg,
+            yAxisID: 'y',
             backgroundColor: cohortAvg.map(d =>
               d <= 14 ? COLORS.green+'bb' : d <= 30 ? COLORS.yellow+'bb' : COLORS.red+'bb'
             ),
@@ -1134,38 +1172,41 @@
               d <= 14 ? COLORS.green : d <= 30 ? COLORS.yellow : COLORS.red
             ),
             borderWidth: 1, borderRadius: 4,
+          },
+          {
+            label: '# Contratados (der.)',
+            data: cohortN,
+            yAxisID: 'y2',
+            type: 'line',
+            borderColor: COLORS.cyan,
+            backgroundColor: COLORS.cyan+'25',
+            borderWidth: 2, pointRadius: 5,
+            pointBackgroundColor: COLORS.cyan,
+            tension: 0.3, fill: false,
           }
         ]
       },
+      plugins: [ tthPlugin ],
       options: {
         responsive: true, maintainAspectRatio: false,
         layout: { padding: { top: 28 } },
         plugins: {
-          legend: { display: false },
-          datalabels: {
-            display: true, anchor:'end', align:'top', clip:false,
-            color: '#e2e8f0', font:{size:11,weight:'700'},
-            formatter: v => `${v}d`
-          },
+          legend: { display: true, position:'bottom', labels:{padding:12,font:{size:11}} },
+          datalabels: { display: false },
           tooltip: { callbacks: {
             title: ctx => `Cohort ${ctx[0].label}`,
             label: ctx => {
               const i = ctx.dataIndex;
-              return [
-                ` Promedio: ${cohortAvg[i]} días`,
-                ` Mín: ${cohortMin[i]}d · Máx: ${cohortMax[i]}d`,
-                ` Contratos: ${cohortN[i]}`,
-              ];
+              if (ctx.datasetIndex === 0)
+                return [` Promedio: ${cohortAvg[i]}d`, ` Mín: ${cohortMin[i]}d · Máx: ${cohortMax[i]}d`];
+              return ` Contratados: ${cohortN[i]}`;
             }
           }}
         },
         scales: {
-          x: { grid:{display:false} },
-          y: {
-            grid: {color:'#2e334d'}, min:0,
-            ticks: { callback: v => `${v}d` },
-            title: { display:true, text:'días', color:'#64748b', font:{size:11} }
-          }
+          x:  { grid:{display:false} },
+          y:  { position:'left',  grid:{color:'#2e334d'}, min:0, ticks:{callback:v=>`${v}d`}, title:{display:true,text:'días promedio',color:'#64748b',font:{size:10}} },
+          y2: { position:'right', grid:{display:false},   min:0, ticks:{stepSize:1},          title:{display:true,text:'# contratados',color:COLORS.cyan,font:{size:10}} }
         }
       }
     });
