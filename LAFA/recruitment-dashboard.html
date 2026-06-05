@@ -1885,43 +1885,55 @@
       }
     });
 
-    // Line chart options — values shown on every data point via datalabels
-    const lineChartOpts = () => ({
+    // Canvas plugin: draws values above each data point on line charts
+    // datasets = [{data, color}, ...] — bypasses datalabels plugin entirely
+    const makeLineLabels = (datasets) => ({
+      id: 'lineLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx, chartArea } = chart;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = '700 10px Inter, system-ui, sans-serif';
+        datasets.forEach((_, di) => {
+          const meta = chart.getDatasetMeta(di);
+          const color = chart.data.datasets[di].borderColor;
+          ctx.fillStyle = color;
+          meta.data.forEach((pt, i) => {
+            const v = chart.data.datasets[di].data[i];
+            if (v == null || v <= 0) return;
+            ctx.fillText(fmtUSD(v), pt.x, pt.y - 6);
+          });
+        });
+        ctx.restore();
+      }
+    });
+
+    // Base options for cost line charts (no datalabels plugin)
+    const lineChartOpts = (datasets) => ({
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 32 } },
+      layout: { padding: { top: 28 } },
       plugins: {
         legend: { display: true, position:'bottom', labels:{padding:10,font:{size:11}} },
-        datalabels: {
-          display: ctx => ctx.raw != null && ctx.raw > 0,
-          anchor: 'top', align: 'top', clip: false,
-          color:  ctx => ctx.dataset.borderColor,
-          font:   { size: 10, weight: '700' },
-          formatter: v => fmtUSD(v)
-        },
+        datalabels: { display: false },
         tooltip: { callbacks: { label: ctx => ctx.raw != null ? ` ${ctx.dataset.label}: ${fmtUSD(ctx.raw)}` : '' }}
       },
       scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, ticks:{callback:v=>fmtUSD(v)}, min:0} }
     });
 
     // ── M2: Weekly $/invitado & $/presente ──────────────────────────
-    makeChart('mktWeekCostChart', {
-      type: 'line',
-      data: { labels: wkLabels, datasets: [
-        { label:'$ / invitado',  data: wkPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
-        { label:'$ / presente', data: wkPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
-      ]},
-      options: lineChartOpts()
-    });
+    const m2ds = [
+      { label:'$ / invitado',  data: wkPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / presente', data: wkPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktWeekCostChart', { type:'line', data:{ labels:wkLabels, datasets:m2ds }, plugins:[makeLineLabels(m2ds)], options:lineChartOpts() });
 
     // ── M3: Weekly $/ent.aprobada & $/contratado ────────────────────
-    makeChart('mktWeekHiredChart', {
-      type: 'line',
-      data: { labels: wkLabels, datasets: [
-        { label:'$ / ent. aprobada', data: wkPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
-        { label:'$ / contratado',    data: wkPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
-      ]},
-      options: lineChartOpts()
-    });
+    const m3ds = [
+      { label:'$ / ent. aprobada', data: wkPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / contratado',    data: wkPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktWeekHiredChart', { type:'line', data:{ labels:wkLabels, datasets:m3ds }, plugins:[makeLineLabels(m3ds)], options:lineChartOpts() });
 
     // ── Monthly ──────────────────────────────────────────────────────
     const allMonths = [...new Set([...Object.keys(moAds), ...Object.keys(moFunnel)])].sort();
@@ -1994,24 +2006,18 @@
     const moPerHired    = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.contratados));
 
     // ── M5: Monthly $/invitado & $/presente ─────────────────────────
-    makeChart('mktMonthCostChart', {
-      type: 'line',
-      data: { labels: moLabels, datasets: [
-        { label:'$ / invitado',  data: moPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
-        { label:'$ / presente', data: moPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
-      ]},
-      options: lineChartOpts()
-    });
+    const m5ds = [
+      { label:'$ / invitado',  data: moPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / presente', data: moPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktMonthCostChart', { type:'line', data:{ labels:moLabels, datasets:m5ds }, plugins:[makeLineLabels(m5ds)], options:lineChartOpts() });
 
     // ── M6: Monthly $/ent.aprobada & $/contratado ────────────────────
-    makeChart('mktMonthHiredChart', {
-      type: 'line',
-      data: { labels: moLabels, datasets: [
-        { label:'$ / ent. aprobada', data: moPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
-        { label:'$ / contratado',    data: moPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
-      ]},
-      options: lineChartOpts()
-    });
+    const m6ds = [
+      { label:'$ / ent. aprobada', data: moPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / contratado',    data: moPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktMonthHiredChart', { type:'line', data:{ labels:moLabels, datasets:m6ds }, plugins:[makeLineLabels(m6ds)], options:lineChartOpts() });
   }
 
   async function fetchAds() {
