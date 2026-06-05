@@ -1124,11 +1124,10 @@
       }
     });
 
-    // 2M Conversion rates line chart
+    // 2M Conversion rates line chart — always divide by actual total (never projected)
     const convMonth = months.map(m => {
       const {total:t, presentes:p, aprobEnt, aprobPM} = mMap[m];
-      const effT = m === curMonthStr ? Math.round(t * projFactor) : t;
-      return { llego:+pct1(p,effT||1), ent:+pct1(aprobEnt,effT||1), pm:+pct1(aprobPM,effT||1) };
+      return { llego:+pct1(p,t||1), ent:+pct1(aprobEnt,t||1), pm:+pct1(aprobPM,t||1) };
     });
     makeChart('conversionMonthChart', { type:'line', data:{ labels, datasets:[
       { label:'Llegó a entrevista',   data:convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
