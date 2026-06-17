@@ -373,35 +373,44 @@
     <div class="funnel" id="funnelChart"></div>
   </div>
   <div class="card">
-    <div class="card-title">2. Tasas de conversión por semana</div>
+    <div class="card-title">2. Tasas de conversión sobre citados · por semana</div>
     <div class="chart-wrap">
       <canvas id="conversionChart" height="280"></canvas>
     </div>
   </div>
   <div class="card">
-    <div class="card-title">3. Candidatos por semana</div>
+    <div class="card-title">3. Tasas de conversión sobre presentes · por semana</div>
+    <div class="chart-wrap">
+      <canvas id="conversionPresChart" height="280"></canvas>
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">4. Candidatos por semana</div>
     <div class="chart-wrap">
       <canvas id="weeklyChart" height="280"></canvas>
     </div>
   </div>
 </div>
 
-<!-- 4 MÉTRICAS SEMANALES -->
+<!-- 5–8 MÉTRICAS SEMANALES -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">4. Asistentes por semana</div>
+    <div class="card-title">5. Asistentes por semana</div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekPresChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">5. Entrevistas aprobadas por semana</div>
+    <div class="card-title">6. Entrevistas aprobadas por semana</div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekEntChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">6. Pruebas de manejo aprobadas por semana</div>
+    <div class="card-title">7. Pruebas de manejo aprobadas por semana</div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekPMChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">7. Contrataciones por semana</div>
+    <div class="card-title">8. Contrataciones por semana</div>
     <div class="chart-wrap" style="height:200px"><canvas id="contratacionesChart"></canvas></div>
   </div>
 </div>
@@ -412,30 +421,30 @@
 
 <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">8. Tasas de conversión por mes</div>
+    <div class="card-title">9. Tasas de conversión por mes</div>
     <div class="chart-wrap"><canvas id="conversionMonthChart" height="280"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">9. Candidatos captados por mes</div>
+    <div class="card-title">10. Candidatos captados por mes</div>
     <div class="chart-wrap"><canvas id="weeklyMonthChart" height="280"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">13. Contrataciones por mes</div>
+    <div class="card-title">14. Contrataciones por mes</div>
     <div class="chart-wrap"><canvas id="contratacionesMonthChart" height="280"></canvas></div>
   </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">10. Asistentes por mes</div>
+    <div class="card-title">11. Asistentes por mes</div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPresChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">11. Entrevistas aprobadas por mes</div>
+    <div class="card-title">12. Entrevistas aprobadas por mes</div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthEntChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">12. Pruebas de manejo aprobadas por mes</div>
+    <div class="card-title">13. Pruebas de manejo aprobadas por mes</div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPMChart"></canvas></div>
   </div>
 </div>
@@ -445,7 +454,7 @@
 <div class="section-label">Tiempo de contratación por cohort semanal</div>
 <div class="card" style="margin-bottom:16px">
   <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:4px">
-    <div class="card-title" style="margin:0">14. Días promedio: primera entrevista → firma de contrato</div>
+    <div class="card-title" style="margin:0">15. Días promedio: primera entrevista → firma de contrato</div>
     <span id="hire-avg-global" style="font-size:12px;color:var(--muted)"></span>
   </div>
   <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
@@ -803,7 +812,7 @@
 
   const COLORS = {
     indigo: '#6366f1', cyan: '#22d3ee', green: '#10b981',
-    yellow: '#f59e0b', red: '#ef4444',  pink:  '#ec4899',
+    yellow: '#f59e0b', orange: '#f97316', red: '#ef4444', pink:  '#ec4899',
     purple: '#a855f7', slate: '#64748b',
   };
 
@@ -1000,11 +1009,12 @@
     rows.forEach(r => {
       const w = isoWeek(r.inicio);
       if (!w) return;
-      if (!weekOrder[w]) weekOrder[w] = { total: 0, presentes: 0, aprobEnt: 0, aprobPM: 0, contrat: 0 };
+      if (!weekOrder[w]) weekOrder[w] = { total: 0, presentes: 0, aprobEnt: 0, llegoaPM: 0, aprobPM: 0, contrat: 0 };
       const wk = weekOrder[w];
       wk.total++;
       if (r.asistencia    === 'Realizada') wk.presentes++;
       if (r.suma_bg       === 'Aprobado')  wk.aprobEnt++;
+      if (r.prueba_manejo === 'Aprobado' || r.prueba_manejo === 'No aprobado') wk.llegoaPM++;
       if (r.prueba_manejo === 'Aprobado')  wk.aprobPM++;
       if (r.firma_contrato)                wk.contrat++;
     });
@@ -1057,6 +1067,30 @@
         { label:'Contratado',            data: convData.map(d=>d.cont),  borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
       ]},
       options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true }
+    });
+
+    // ── CHART 3: CONVERSION SOBRE PRESENTES ─────────────────────────
+    const convPresData = sortedWeeks.map(w => {
+      const { presentes: p, aprobEnt, llegoaPM, aprobPM, contrat } = weekOrder[w];
+      const base = p || 1;
+      return {
+        llego:    100,
+        ent:      +pct1(aprobEnt,  base),
+        llegoPM:  +pct1(llegoaPM,  base),
+        pm:       +pct1(aprobPM,   base),
+        cont:     +pct1(contrat,   base),
+      };
+    });
+    makeChart('conversionPresChart', {
+      type: 'line',
+      data: { labels: weekLabels, datasets: [
+        { label:'Llegó a entrevista',        data: convPresData.map(d=>d.llego),   borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
+        { label:'Aprobó entrevista',         data: convPresData.map(d=>d.ent),     borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
+        { label:'Llegó a prueba de manejo',  data: convPresData.map(d=>d.llegoPM), borderColor:COLORS.orange, backgroundColor:COLORS.orange+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.orange, tension:0.3, fill:false },
+        { label:'Aprobó prueba de manejo',   data: convPresData.map(d=>d.pm),      borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+        { label:'Contratado',                data: convPresData.map(d=>d.cont),    borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
+      ]},
+      options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0,max:100} }, responsive:true }
     });
 
     // ── CONTRATACIONES POR SEMANA ────────────────────────────────────
