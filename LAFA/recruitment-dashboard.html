@@ -1084,7 +1084,6 @@
     makeChart('conversionPresChart', {
       type: 'line',
       data: { labels: weekLabels, datasets: [
-        { label:'Llegó a entrevista',        data: convPresData.map(d=>d.llego),   borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
         { label:'Aprobó entrevista',         data: convPresData.map(d=>d.ent),     borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
         { label:'Llegó a prueba de manejo',  data: convPresData.map(d=>d.llegoPM), borderColor:COLORS.orange, backgroundColor:COLORS.orange+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.orange, tension:0.3, fill:false },
         { label:'Aprobó prueba de manejo',   data: convPresData.map(d=>d.pm),      borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
