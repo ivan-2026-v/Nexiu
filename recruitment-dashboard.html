@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Reclutamiento — LAFA / Nexiu</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e334d;
+      --accent: #6366f1;
+      --accent2: #22d3ee;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --radius: 12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 28px;
+    }
+    header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 13px;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 12px;
+      color: var(--accent2);
+      margin-top: 8px;
+    }
+
+    /* KPI CARDS */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .kpi-card.blue::before { background: var(--accent); }
+    .kpi-card.cyan::before { background: var(--accent2); }
+    .kpi-card.green::before { background: var(--success); }
+    .kpi-card.yellow::before { background: var(--warning); }
+    .kpi-card.red::before { background: var(--danger); }
+
+    .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+    .kpi-value { font-size: 30px; font-weight: 800; color: #fff; }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .kpi-trend { font-size: 12px; font-weight: 600; margin-top: 6px; }
+    .trend-bad { color: var(--danger); }
+    .trend-ok { color: var(--success); }
+    .trend-warn { color: var(--warning); }
+
+    /* MAIN GRID */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .grid-1 {
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 16px;
+    }
+    .chart-wrap {
+      position: relative;
+    }
+
+    /* FUNNEL */
+    .funnel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .funnel-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .funnel-label {
+      font-size: 12px;
+      color: var(--muted);
+      width: 210px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .funnel-bar-wrap {
+      flex: 1;
+      height: 28px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .funnel-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .funnel-pct {
+      width: 50px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* INSIGHTS */
+    .insights {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .insight {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 14px 16px;
+      border-left: 3px solid transparent;
+    }
+    .insight.red { border-left-color: var(--danger); }
+    .insight.green { border-left-color: var(--success); }
+    .insight.yellow { border-left-color: var(--warning); }
+    .insight.blue { border-left-color: var(--accent); }
+    .insight-title { font-weight: 700; font-size: 13px; margin-bottom: 5px; }
+    .insight.red .insight-title { color: #fca5a5; }
+    .insight.green .insight-title { color: #6ee7b7; }
+    .insight.yellow .insight-title { color: #fcd34d; }
+    .insight.blue .insight-title { color: #a5b4fc; }
+    .insight p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    .section-sep {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0 20px;
+    }
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* TABS */
+    .tab-nav {
+      display: flex;
+      gap: 0;
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 10px 22px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color .2s, border-color .2s;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* DETALLE TABLES */
+    .week-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .week-table th {
+      text-transform: uppercase; letter-spacing: .07em; font-size: 10px;
+      color: var(--muted); font-weight: 600; padding: 7px 10px;
+      text-align: right; border-bottom: 1px solid var(--border);
+    }
+    .week-table th:first-child, .week-table th:nth-child(2) { text-align: left; }
+    .week-table td {
+      padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right;
+    }
+    .week-table td:first-child, .week-table td:nth-child(2) { text-align: left; color: var(--text); }
+    .week-table .sum-row td { font-weight: 700; background: var(--surface2); color: #fff; }
+    .rate-good { color: var(--success); font-weight: 700; }
+    .rate-warn { color: var(--warning); font-weight: 700; }
+    .rate-bad  { color: var(--danger);  font-weight: 700; }
+
+    .backup-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .backup-tbl th {
+      text-transform: uppercase; font-size: 10px; color: var(--muted);
+      font-weight: 600; letter-spacing: .07em; padding: 7px 10px;
+      text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .backup-tbl td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+    .backup-tbl tr:hover td { background: var(--surface2); }
+    .backup-scroll { max-height: 420px; overflow-y: auto; }
+
+    .funnel-mode-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 6px; padding: 3px 10px;
+      font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: all .15s;
+    }
+    .funnel-mode-btn:hover { color: var(--text); }
+    .funnel-mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .week-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .week-chip {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 14px; font-size: 12px;
+      color: var(--muted); cursor: pointer; transition: all .2s;
+    }
+    .week-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Dashboard de Reclutamiento</h1>
+  <p>Funnel HR OS · Canal Nexiu · Datos en vivo desde Supabase &nbsp;·&nbsp; <span id="header-updated" style="opacity:.75">Cargando…</span></p>
+  <span class="badge" id="header-periodo">Cargando...</span>
+</header>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('executive',this)">Executive</button>
+  <button class="tab-btn" onclick="switchTab('marketing',this)">Marketing</button>
+  <button class="tab-btn" onclick="switchTab('detalle',this)">Detalle Asistencia</button>
+  <button class="tab-btn" onclick="switchTab('pipeline',this)">Pipeline Activo</button>
+  <button class="tab-btn" onclick="switchTab('backup',this)">Backup</button>
+</div>
+
+<div id="tab-executive" class="tab-content active">
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+  <div class="kpi-card blue">
+    <div class="kpi-label">Total candidatos</div>
+    <div class="kpi-value" id="kpi-total">—</div>
+    <div class="kpi-sub">en el período</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-label">Tasa de presentación</div>
+    <div class="kpi-value" id="kpi-presentacion">—</div>
+    <div class="kpi-sub" id="kpi-presentacion-sub">—</div>
+    <div class="kpi-trend trend-bad" id="kpi-noshow">—</div>
+  </div>
+  <div class="kpi-card cyan">
+    <div class="kpi-label">Aprobación entrevista</div>
+    <div class="kpi-value" id="kpi-aprobacion">—</div>
+    <div class="kpi-sub" id="kpi-aprobacion-sub">—</div>
+    <div class="kpi-trend trend-ok">✓ Buen filtro</div>
+  </div>
+  <div class="kpi-card yellow">
+    <div class="kpi-label">Aprobó prueba de manejo</div>
+    <div class="kpi-value" id="kpi-prueba">—</div>
+    <div class="kpi-sub" id="kpi-prueba-sub">—</div>
+    <div class="kpi-trend trend-ok">✓ Alta conversión</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-label">Contratados</div>
+    <div class="kpi-value" id="kpi-contratados">—</div>
+    <div class="kpi-sub">firma de contrato</div>
+    <div class="kpi-trend trend-ok" id="kpi-listos">—</div>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-label">Conversión total</div>
+    <div class="kpi-value" id="kpi-conversion">—</div>
+    <div class="kpi-sub">contratados / candidatos</div>
+    <div class="kpi-trend trend-bad">↓ Cuello de botella: no-show</div>
+  </div>
+  <div class="kpi-card yellow">
+    <div class="kpi-label">Declinaron oferta</div>
+    <div class="kpi-value" id="kpi-declina">—</div>
+    <div class="kpi-sub">post-entrevista</div>
+    <div class="kpi-trend trend-warn">⚠ Principal causa: sueldo</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-label">En pipeline activo</div>
+    <div class="kpi-value" id="kpi-pipeline">—</div>
+    <div class="kpi-sub" id="kpi-pipeline-sub">—</div>
+    <div class="kpi-trend trend-ok">Potencial de cierre</div>
+  </div>
+</div>
+
+<!-- FUNNEL + TASAS + WEEKLY -->
+<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0">1. Funnel de Reclutamiento</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <div id="funnel-mode-btns" style="display:flex;gap:4px">
+          <button onclick="setFunnelMode('all')"   class="funnel-mode-btn active" data-mode="all">Todo</button>
+          <button onclick="setFunnelMode('week')"  class="funnel-mode-btn"        data-mode="week">Semana</button>
+          <button onclick="setFunnelMode('month')" class="funnel-mode-btn"        data-mode="month">Mes</button>
+        </div>
+        <select id="funnel-period-select" onchange="applyFunnelFilter()"
+          style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                 border-radius:6px;padding:3px 8px;font-size:12px;font-family:inherit;cursor:pointer">
+        </select>
+      </div>
+    </div>
+    <div class="funnel" id="funnelChart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">2. Tasas de conversión por semana</div>
+    <div class="chart-wrap">
+      <canvas id="conversionChart" height="280"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">3. Candidatos por semana</div>
+    <div class="chart-wrap">
+      <canvas id="weeklyChart" height="280"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- 4 MÉTRICAS SEMANALES -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">4. Asistentes por semana</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="weekPresChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">5. Entrevistas aprobadas por semana</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="weekEntChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">6. Pruebas de manejo aprobadas por semana</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="weekPMChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">7. Contrataciones por semana</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="contratacionesChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ── MONTHLY CHARTS ─────────────────────────────────────────────────── -->
+<hr class="section-sep" />
+<div class="section-label">Visión mensual &nbsp;·&nbsp; <span id="monthly-proj-note" style="color:var(--accent);text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+
+<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">8. Tasas de conversión por mes</div>
+    <div class="chart-wrap"><canvas id="conversionMonthChart" height="280"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">9. Candidatos captados por mes</div>
+    <div class="chart-wrap"><canvas id="weeklyMonthChart" height="280"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">13. Contrataciones por mes</div>
+    <div class="chart-wrap"><canvas id="contratacionesMonthChart" height="280"></canvas></div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">10. Asistentes por mes</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="monthPresChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">11. Entrevistas aprobadas por mes</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="monthEntChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">12. Pruebas de manejo aprobadas por mes</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="monthPMChart"></canvas></div>
+  </div>
+</div>
+
+<!-- TIEMPO DE CONTRATACIÓN -->
+<hr class="section-sep" />
+<div class="section-label">Tiempo de contratación por cohort semanal</div>
+<div class="card" style="margin-bottom:16px">
+  <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:4px">
+    <div class="card-title" style="margin:0">14. Días promedio: primera entrevista → firma de contrato</div>
+    <span id="hire-avg-global" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+    Cada barra = cohort de la semana de llegada. Solo candidatos con <code>firma_contrato</code> registrada.
+  </div>
+  <div class="chart-wrap" style="height:260px"><canvas id="timeToHireChart"></canvas></div>
+</div>
+
+</div><!-- /tab-executive -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: BACKUP                                                        -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-backup" class="tab-content">
+
+<!-- ENTREVISTA + DETALLE NO APROBADOS -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">8. Resultado de entrevistas</div>
+    <div class="chart-wrap" style="max-width:340px;margin:0 auto">
+      <canvas id="entrevistaChart" height="280"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">9. Detalle de no aprobados en entrevista</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Total</div>
+        <div style="font-size:28px;font-weight:800;color:#fff">74</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Con razón</div>
+        <div style="font-size:28px;font-weight:800;color:var(--warning)">11</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">15%</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Sin documentar</div>
+        <div style="font-size:28px;font-weight:800;color:var(--danger)">63</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">85%</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Razones capturadas (11)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Distancia &gt;2h</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Métricas difíciles</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Actitud</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Edad / Pensionado</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Sueldo no conviene</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Antecedentes / Demandas</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Historial laboral negativo</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:#ef444412;border:1px dashed #ef444440;border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted);font-style:italic">Sin documentar</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">63</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRUEBA DE MANEJO: DONUT + DETALLE -->
+<div class="grid-2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">10. Resultado de prueba de manejo</div>
+    <div class="chart-wrap" style="max-width:340px;margin:0 auto">
+      <canvas id="pruebaDonutChart" height="280"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">11. Detalle de no aprobados en prueba de manejo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">No aprobados</div>
+        <div style="font-size:28px;font-weight:800;color:#fff">30</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Con razón</div>
+        <div style="font-size:28px;font-weight:800;color:var(--warning)">5</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">17%</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Sin documentar</div>
+        <div style="font-size:28px;font-weight:800;color:var(--danger)">25</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">83%</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Razones capturadas (5)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">Chocó la unidad</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">No supo estacionarse</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">2</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--text)">No pasó (sin detalle)</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">1</span>
+      </div>
+      <div style="background:#ef444412;border:1px dashed #ef444440;border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted);font-style:italic">Sin documentar</span>
+        <span style="font-size:13px;font-weight:700;color:var(--danger)">25</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS DRIVER + DETALLE 53 SIN STATUS -->
+<div class="grid-2" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">12. Status Driver (263 presentes)</div>
+    <div class="chart-wrap">
+      <canvas id="statusDriverChart" height="220"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">13. Candidatos sin Status Driver asignado</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+      <!-- Grupo 1: crítico -->
+      <div style="background:#ef444418;border:1px solid #ef444450;border-radius:8px;padding:14px">
+        <div style="font-size:10px;color:#fca5a5;text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:8px">🔴 Aprobados sin seguimiento</div>
+        <div style="font-size:28px;font-weight:800;color:#fff;margin-bottom:6px">22</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">Aprobaron entrevista + BG. Nunca se les asignó status.</div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;background:var(--surface);border-radius:5px;padding:6px 10px">
+            <span style="color:#6ee7b7">✓ También aprobaron prueba manejo</span>
+            <strong style="color:#ef4444">12</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;background:var(--surface);border-radius:5px;padding:6px 10px">
+            <span style="color:var(--muted)">No aprobaron prueba manejo</span>
+            <strong style="color:var(--muted)">6</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;background:var(--surface);border-radius:5px;padding:6px 10px">
+            <span style="color:var(--muted)">Sin / declinó prueba</span>
+            <strong style="color:var(--muted)">4</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grupo 2 + 3 + 4 apilados -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:6px">🟡 Pendientes (suma BG = Pendiente)</div>
+          <div style="font-size:24px;font-weight:800;color:#fff">20</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">18 de ellos marcaron <em>Sí</em> a declinar oferta — posibles abandonos no cerrados en sistema.</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:6px">⚪ No aprobados sin status</div>
+          <div style="font-size:24px;font-weight:800;color:#fff">8</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Deberían figurar como Rechazado. Dato incompleto en sistema.</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:6px">⚪ Declinó / Se retiró sin status</div>
+          <div style="font-size:24px;font-weight:800;color:#fff">3</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Candidatos que salieron del proceso sin cierre en sistema.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- RAZONES DECLIVE -->
+<div class="grid-1 card" style="margin-bottom:16px">
+  <div class="card-title">14. Razones para declinar oferta, todas las etapas (columna J)</div>
+  <div class="chart-wrap" style="max-width:600px">
+    <canvas id="declinaChart" height="140"></canvas>
+  </div>
+</div>
+
+<hr class="section-sep" />
+<div class="section-label">Conclusiones del mes</div>
+
+<div class="insights">
+  <div class="insight red">
+    <div class="insight-title">🔴 Alarma: No-show del 88.9%</div>
+    <p>Solo 1 de cada 9 candidatos captados llega a entrevista. Este es el principal cuello de botella del funnel. Con una tasa de presentación tan baja, el volumen de captación necesario para alcanzar metas es insostenible. Se requiere revisar urgentemente la calidad de leads y el proceso de confirmación.</p>
+  </div>
+  <div class="insight red">
+    <div class="insight-title">🔴 El sueldo aleja candidatos</div>
+    <p>Las principales razones de declive son explícitamente económicas: sueldo bajo, bonos poco atractivos, condiciones no competitivas. 53 candidatos declinaron post-entrevista — son prospectos calificados perdidos por propuesta de valor. Hay que revisar el esquema salarial vs. la competencia del sector.</p>
+  </div>
+  <div class="insight green">
+    <div class="insight-title">🟢 El proceso de selección funciona</div>
+    <p>Del 11% que llega, el 46.8% aprueba la entrevista y el 76.4% pasa la prueba de manejo. Los filtros son efectivos y la calidad de candidatos que avanza es razonablemente alta. El problema no es la selección — es el volumen que llega.</p>
+  </div>
+  <div class="insight green">
+    <div class="insight-title">🟢 Pipeline con potencial de cierre</div>
+    <p>Hay 37 candidatos activos (26 "listos para onboarding" + 11 con "contrato no firmado"). Si se logra activar este pipeline, se podrían sumar hasta ~30 contrataciones adicionales sin generar nuevos leads. Prioridad: seguimiento inmediato.</p>
+  </div>
+
+  <div class="insight yellow">
+    <div class="insight-title">🟡 Onboarding con alta caída</div>
+    <p>De 16 con onboarding asignado, solo 9 llegaron (56.3%). Adicionalmente, 4 registros muestran "No llegó a onboarding". Hay fricción entre el compromiso y la asistencia al onboarding que se debe atacar con recordatorios y reducción del tiempo entre firma y primer día.</p>
+  </div>
+</div>
+
+</div><!-- /tab-backup -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: DETALLE ASISTENCIA                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-detalle" class="tab-content">
+
+  <!-- WTD COMPARISON CHART -->
+  <div class="card grid-1" style="margin-bottom:16px">
+    <div class="card-title">Asistencia acumulada week-to-date vs semanas previas</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+      Cada línea muestra la asistencia acumulada de lunes al día actual. La semana actual se resalta en cian.
+    </div>
+    <div class="chart-wrap">
+      <canvas id="wtdChart" height="90"></canvas>
+    </div>
+  </div>
+
+  <!-- DAY-BY-DAY TABLE + DAY COMPARISON (side by side) -->
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Asistencia diaria por semana</div>
+      <div id="weekly-day-table"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Comparativa mismo día · últimas semanas</div>
+      <div id="day-comparison"></div>
+    </div>
+  </div>
+
+  <!-- REAGENDADOS -->
+  <div class="card grid-1" style="margin-bottom:16px">
+    <div class="card-title">Asistencia efectiva de reagendados</div>
+    <div id="reagendados-section"></div>
+  </div>
+
+  <!-- BACKUP LIST -->
+  <div class="card grid-1" style="margin-bottom:16px">
+    <div class="card-title">Backup: detalle de presentes por semana</div>
+    <div class="week-chips" id="backup-chips"></div>
+    <div class="backup-scroll">
+      <table class="backup-tbl">
+        <thead><tr>
+          <th>#</th><th>ID</th><th>Candidato</th><th>Fecha</th>
+          <th>Canal</th><th>Entrevistador/a</th><th>Estado entrevista</th>
+        </tr></thead>
+        <tbody id="backup-body"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted)" id="backup-count"></div>
+  </div>
+
+</div><!-- /tab-detalle -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: PIPELINE ACTIVO                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-pipeline" class="tab-content">
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Evolución del pipeline activo · corte viernes 3 pm</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="pipelineEvolChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Candidatos activos por etapa y semana</div>
+      <div style="overflow-x:auto" id="pipeline-pivot"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0">Candidatos en pipeline activo &mdash; <span id="pipeline-count">0</span></div>
+      <button onclick="exportPipeline()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.02em">⬇ Exportar CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em">
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">Candidato</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Sem.</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Inicio</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Etapa actual</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)">Canal</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">Entrevistador/a</th>
+          </tr>
+        </thead>
+        <tbody id="pipeline-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /tab-pipeline -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: MARKETING                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-marketing" class="tab-content">
+
+  <div class="section-label">Inversión semanal</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">M1. Gasto semanal (USD)</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktWeekSpendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">M2. $ / invitado &amp; $ / presente — semanal</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktWeekCostChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">M3. $ / entrevista aprobada &amp; $ / contratado — semanal</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktWeekHiredChart"></canvas></div>
+    </div>
+  </div>
+
+  <hr class="section-sep" />
+  <div class="section-label">Inversión mensual &nbsp;·&nbsp; <span id="mkt-proj-note" style="color:var(--accent);text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">M4. Gasto mensual (USD)</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktMonthSpendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">M5. $ / invitado &amp; $ / presente — mensual</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktMonthCostChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">M6. $ / entrevista aprobada &amp; $ / contratado — mensual</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="mktMonthHiredChart"></canvas></div>
+    </div>
+  </div>
+
+</div><!-- /tab-marketing -->
+
+<script>
+  // ── CONFIG ──────────────────────────────────────────────────────────
+  const SUPABASE_URL = 'https://ctbkipgraypohrdeoggv.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_xcIKLzG17KzKOUHA1QlpoQ_WHWnz95d';
+
+  const COLORS = {
+    indigo: '#6366f1', cyan: '#22d3ee', green: '#10b981',
+    yellow: '#f59e0b', red: '#ef4444',  pink:  '#ec4899',
+    purple: '#a855f7', slate: '#64748b',
+  };
+
+  Chart.register(ChartDataLabels);
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = '#2e334d';
+  Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+  // ── HELPERS ─────────────────────────────────────────────────────────
+  const pct  = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const pct1 = (a, b) => b ? (a / b * 100).toFixed(1) : '0.0';
+  const counter = (arr, fn) => arr.reduce((m, r) => { const k = fn(r) ?? 'null'; m[k] = (m[k]||0)+1; return m; }, {});
+
+  function isoWeek(dateStr) {
+    if (!dateStr) return null;
+    const [y, mo, dy] = dateStr.slice(0,10).split('-').map(Number);
+    const d = new Date(y, mo - 1, dy); // local date, no UTC shift
+    d.setDate(d.getDate() + 3 - (d.getDay()+6)%7);
+    const w1 = new Date(d.getFullYear(), 0, 4);
+    return 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay()+6)%7) / 7);
+  }
+
+  function normalizaRazon(r) {
+    const s = (r.razon_declina || '').toLowerCase();
+    if (!r.razon_declina || s.includes('decline_offer') || s.includes('declined')) return 'Sin especificar';
+    if (s.includes('sueldo') || s.includes('bono') || s.includes('salario') || s.includes('metricas') || s.includes('métrica')) return 'Sueldo / Bonos / Métricas';
+    if (s.includes('horario')) return 'Horarios';
+    if (s.includes('distancia') || s.includes('toluca') || s.includes('camino')) return 'Distancia';
+    if (s.includes('no le interesa') || s.includes('no le conviene') || s.includes('flotilla')) return 'No le interesa';
+    return 'Otro';
+  }
+
+  function renderFunnel(rows) {
+    const total       = rows.length;
+    const noLlego     = rows.filter(r => r.asistencia !== 'Realizada').length;
+    const llego       = rows.filter(r => r.asistencia === 'Realizada').length;
+    const aprobBG     = rows.filter(r => r.suma_bg === 'Aprobado').length;
+    const aprobPrueba = rows.filter(r => r.prueba_manejo === 'Aprobado').length;
+    const onboarding  = rows.filter(r => r.onboarding_dia).length;
+    const docs        = rows.filter(r => r.docs_y_didi && r.docs_y_didi.includes('No tuvo')).length;
+    const contratado  = rows.filter(r => r.firma_contrato).length;
+
+    const funnelData = [
+      { label: 'Total candidatos',       value: total,       color: COLORS.indigo },
+      { label: 'No llegó a entrevista',  value: noLlego,     color: COLORS.red    },
+      { label: 'Llegó a entrevista',     value: llego,       color: COLORS.cyan   },
+      { label: 'Aprobó entrevista/BG',   value: aprobBG,     color: COLORS.green  },
+      { label: 'Aprobó prueba de manejo',value: aprobPrueba, color: COLORS.green  },
+      { label: 'Onboarding asignado',    value: onboarding,  color: COLORS.yellow },
+      { label: 'Docs y DiDi listo',      value: docs,        color: COLORS.purple },
+      { label: 'Contratado (firma)',      value: contratado,  color: COLORS.cyan   },
+    ];
+    const funnelEl = document.getElementById('funnelChart');
+    funnelEl.innerHTML = '';
+    funnelData.forEach(row => {
+      const p = ((row.value / total) * 100).toFixed(1);
+      const pctLabel = row.label === 'Total candidatos' ? '100%' : p + '%';
+      funnelEl.innerHTML += `
+        <div class="funnel-row">
+          <div class="funnel-label">${row.label}</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar" style="width:${p}%; background:${row.color}; padding-right:0"></div>
+          </div>
+          <div style="width:46px;text-align:right;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${row.value.toLocaleString()}</div>
+          <div class="funnel-pct">${pctLabel}</div>
+        </div>`;
+    });
+  }
+
+  // ── FUNNEL FILTER ────────────────────────────────────────────────────
+  let _funnelMode = 'all';
+
+  function setFunnelMode(mode) {
+    _funnelMode = mode;
+    // update button styles
+    document.querySelectorAll('.funnel-mode-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === mode)
+    );
+    const sel = document.getElementById('funnel-period-select');
+    if (mode === 'all') {
+      sel.style.display = 'none';
+      renderFunnel(window._allRows);
+      return;
+    }
+    // populate dropdown
+    const rows = window._allRows || [];
+    if (mode === 'week') {
+      const weeks = [...new Set(rows.map(r => isoWeek(r.inicio)).filter(Boolean))].sort((a,b) => b-a);
+      sel.innerHTML = weeks.map(w => `<option value="${w}">Semana ${w}</option>`).join('');
+    } else {
+      const monthName = m => {
+        const [y, mo] = m.split('-');
+        return new Date(+y, +mo-1, 1).toLocaleDateString('es-MX', {month:'long', year:'numeric'});
+      };
+      const months = [...new Set(rows.map(r => (r.inicio||'').slice(0,7)).filter(Boolean))].sort().reverse();
+      sel.innerHTML = months.map(m => `<option value="${m}">${monthName(m)}</option>`).join('');
+    }
+    sel.style.display = 'block';
+    applyFunnelFilter();
+  }
+
+  function applyFunnelFilter() {
+    const rows = window._allRows || [];
+    const val  = document.getElementById('funnel-period-select').value;
+    let filtered;
+    if (_funnelMode === 'week') {
+      filtered = rows.filter(r => isoWeek(r.inicio) === +val);
+    } else {
+      filtered = rows.filter(r => (r.inicio||'').startsWith(val));
+    }
+    renderFunnel(filtered);
+  }
+
+  function updateKPIs(rows) {
+    const total       = rows.length;
+    const presentes   = rows.filter(r => r.asistencia === 'Realizada');
+    const llego       = presentes.length;
+    const aprobBG     = rows.filter(r => r.suma_bg === 'Aprobado').length;
+    const conPrueba   = rows.filter(r => r.prueba_manejo);
+    const aprobPrueba = rows.filter(r => r.prueba_manejo === 'Aprobado').length;
+    const contratado  = rows.filter(r => r.firma_contrato).length;
+    const declina     = rows.filter(r => r.declina_oferta === 'Sí').length;
+    const listos      = rows.filter(r => r.status_driver === 'Listo para onboarding').length;
+    const noFirmado   = rows.filter(r => r.status_driver === 'Contrato no firmado').length;
+
+    const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+
+    set('kpi-total',          total.toLocaleString());
+    set('kpi-presentacion',   pct1(llego, total) + '%');
+    set('kpi-presentacion-sub', `${llego.toLocaleString()} de ${total.toLocaleString()} llegaron`);
+    set('kpi-noshow',         `↓ ${pct1(total - llego, total)}% no-show`);
+    set('kpi-aprobacion',     pct1(aprobBG, llego) + '%');
+    set('kpi-aprobacion-sub', `${aprobBG} aprobaron entrevista + BG`);
+    set('kpi-prueba',         pct1(aprobPrueba, conPrueba.length) + '%');
+    set('kpi-prueba-sub',     `${aprobPrueba} de ${conPrueba.length} que la tomaron`);
+    set('kpi-contratados',    contratado.toLocaleString());
+    set('kpi-listos',         `+${listos} listos p/ onboarding`);
+    set('kpi-conversion',     pct1(contratado, total) + '%');
+    set('kpi-declina',        declina.toLocaleString());
+    set('kpi-pipeline',       (listos + noFirmado).toLocaleString());
+    set('kpi-pipeline-sub',   `${listos} listos + ${noFirmado} contrato pendiente`);
+  }
+
+  // Canvas-draw plugin: values inside bars + MoM% above — reused across tabs
+  function makeLabelsPlugin(actualVals, extraVals, prevVals, fmtVal) {
+    const fmt = fmtVal || (v => String(v));
+    return {
+      id: 'barLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        ctx.save(); ctx.textAlign = 'center';
+        actualVals.forEach((actual, i) => {
+          const bar0 = meta0.data[i], bar1 = meta1.data[i];
+          if (!bar0) return;
+          if (actual > 0) {
+            ctx.font = '700 12px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+            ctx.fillText(fmt(actual), bar0.x, (bar0.y + bar0.base) / 2);
+          }
+          const ext = extraVals[i] || 0;
+          if (ext > 0 && bar1) {
+            ctx.font = '600 11px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#cbd5e1'; ctx.textBaseline = 'middle';
+            ctx.fillText(`~${fmt(actual + ext)}`, bar1.x, (bar1.y + bar1.base) / 2);
+          }
+          if (i === 0) return;
+          const prev = prevVals[i]; if (!prev) return;
+          const total = actual + ext;
+          const pct = Math.round((total - prev) / prev * 100);
+          ctx.font = '700 10px Inter, system-ui, sans-serif';
+          ctx.fillStyle = pct >= 0 ? '#6ee7b7' : '#fca5a5'; ctx.textBaseline = 'bottom';
+          const barTop = ext > 0 && bar1 ? bar1.y : bar0.y;
+          ctx.fillText(`${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`, bar0.x, barTop - 4);
+        });
+        ctx.restore();
+      }
+    };
+  }
+
+  let chartInstances = {};
+  function makeChart(id, config) {
+    if (chartInstances[id]) chartInstances[id].destroy();
+    chartInstances[id] = new Chart(document.getElementById(id), config);
+  }
+
+  function renderCharts(rows) {
+    const presentes   = rows.filter(r => r.asistencia === 'Realizada');
+    const llego       = presentes.length;
+
+    // ── WEEKLY ──────────────────────────────────────────────────────
+    const weekOrder = {};
+    rows.forEach(r => {
+      const w = isoWeek(r.inicio);
+      if (!w) return;
+      if (!weekOrder[w]) weekOrder[w] = { total: 0, presentes: 0, aprobEnt: 0, aprobPM: 0, contrat: 0 };
+      const wk = weekOrder[w];
+      wk.total++;
+      if (r.asistencia    === 'Realizada') wk.presentes++;
+      if (r.suma_bg       === 'Aprobado')  wk.aprobEnt++;
+      if (r.prueba_manejo === 'Aprobado')  wk.aprobPM++;
+      if (r.firma_contrato)                wk.contrat++;
+    });
+    const sortedWeeks = Object.keys(weekOrder).map(Number).sort((a,b)=>a-b);
+    const weekLabels = sortedWeeks.map(w => `S${w}`);
+    const weekTotal  = sortedWeeks.map(w => weekOrder[w].total);
+    const weekPres   = sortedWeeks.map(w => weekOrder[w].presentes);
+
+    makeChart('weeklyChart', {
+      type: 'bar',
+      data: { labels: weekLabels, datasets: [
+        { label: 'Candidatos captados', data: weekTotal, backgroundColor: COLORS.indigo+'bb', borderColor: COLORS.indigo, borderWidth:1, borderRadius:4 },
+      ]},
+      options: { plugins: { legend: { display:false }, datalabels:{display:true,anchor:'center',align:'center',color:'#fff',font:{size:11,weight:'700'},formatter:v=>v||''} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}} }, responsive:true, maintainAspectRatio:true }
+    });
+
+    // ── 4 MÉTRICAS SEMANALES ────────────────────────────────────────
+    const weekMetricOpts = () => ({
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{display:false}, datalabels:{display:true,anchor:'center',align:'center',color:'#fff',font:{size:11,weight:'700'},formatter:v=>v||''} },
+      scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},min:0,ticks:{stepSize:1}} }
+    });
+    makeChart('weekPresChart', {
+      type:'bar',
+      data:{ labels:weekLabels, datasets:[{ data:weekPres, backgroundColor:COLORS.cyan+'bb', borderColor:COLORS.cyan, borderWidth:1, borderRadius:4 }] },
+      options: weekMetricOpts()
+    });
+    makeChart('weekEntChart', {
+      type:'bar',
+      data:{ labels:weekLabels, datasets:[{ data:sortedWeeks.map(w=>weekOrder[w].aprobEnt), backgroundColor:COLORS.green+'bb', borderColor:COLORS.green, borderWidth:1, borderRadius:4 }] },
+      options: weekMetricOpts()
+    });
+    makeChart('weekPMChart', {
+      type:'bar',
+      data:{ labels:weekLabels, datasets:[{ data:sortedWeeks.map(w=>weekOrder[w].aprobPM), backgroundColor:COLORS.yellow+'bb', borderColor:COLORS.yellow, borderWidth:1, borderRadius:4 }] },
+      options: weekMetricOpts()
+    });
+
+    // ── CONVERSION BY WEEK ───────────────────────────────────────────
+    const convData = sortedWeeks.map(w => {
+      const { total: t, presentes: p, aprobEnt, aprobPM, contrat } = weekOrder[w];
+      return { llego: +pct1(p,t), ent: +pct1(aprobEnt,t), pm: +pct1(aprobPM,t), cont: +pct1(contrat,t) };
+    });
+    makeChart('conversionChart', {
+      type: 'line',
+      data: { labels: weekLabels, datasets: [
+        { label:'Llegó a entrevista',    data: convData.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
+        { label:'Aprobó entrevista',     data: convData.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
+        { label:'Aprobó prueba manejo',  data: convData.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+        { label:'Contratado',            data: convData.map(d=>d.cont),  borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
+      ]},
+      options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true }
+    });
+
+    // ── CONTRATACIONES POR SEMANA ────────────────────────────────────
+    const firmaWeekMap = {};
+    rows.filter(r => r.firma_contrato).forEach(r => {
+      const w = isoWeek(r.firma_contrato);
+      if (w) firmaWeekMap[w] = (firmaWeekMap[w] || 0) + 1;
+    });
+    const firmaWeeks = Object.keys(firmaWeekMap).map(Number).sort((a,b)=>a-b);
+    const firmaVals  = firmaWeeks.map(w => firmaWeekMap[w]);
+    makeChart('contratacionesChart', {
+      type: 'bar',
+      data: { labels: firmaWeeks.map(w=>`S${w}`), datasets:[{
+        label: 'Contratos firmados',
+        data: firmaVals,
+        backgroundColor: COLORS.green+'bb', borderColor: COLORS.green, borderWidth:1, borderRadius:4
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display:false },
+          datalabels: { display:true, anchor:'center', align:'center', color:'#fff', font:{size:12,weight:'700'}, formatter: v => v || '' }
+        },
+        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{stepSize:1}} }
+      }
+    });
+
+    renderMonthlyCharts(rows);
+
+    // ── 14: Time to hire by cohort week ─────────────────────────────
+    const cohortMap = {};
+    rows.forEach(r => {
+      if (!r.inicio || !r.firma_contrato) return;
+      const days = Math.round(
+        (new Date(r.firma_contrato) - new Date(r.inicio)) / 86400000
+      );
+      if (days < 0 || days > 365) return;   // sanity filter
+      const w = isoWeek(r.inicio);
+      if (!w) return;
+      if (!cohortMap[w]) cohortMap[w] = [];
+      cohortMap[w].push(days);
+    });
+
+    const cohortWeeks = Object.keys(cohortMap).map(Number).sort((a,b)=>a-b);
+    const cohortAvg   = cohortWeeks.map(w => {
+      const vals = cohortMap[w];
+      return Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
+    });
+    const cohortMin   = cohortWeeks.map(w => Math.min(...cohortMap[w]));
+    const cohortMax   = cohortWeeks.map(w => Math.max(...cohortMap[w]));
+    const cohortN     = cohortWeeks.map(w => cohortMap[w].length);
+
+    // Overall average
+    const allDays = Object.values(cohortMap).flat();
+    const globalAvg = allDays.length
+      ? Math.round(allDays.reduce((a,b)=>a+b,0) / allDays.length)
+      : null;
+    const avgEl = document.getElementById('hire-avg-global');
+    if (avgEl && globalAvg) avgEl.textContent = `Promedio global: ${globalAvg} días · ${allDays.length} contratos`;
+
+    const tthLabels = cohortWeeks.map(w=>`S${w}`);
+
+    // Canvas plugin: "Xd" above bar + "n=X" inside bar
+    const tthPlugin = {
+      id: 'tthLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        ctx.save(); ctx.textAlign = 'center';
+        cohortAvg.forEach((avg, i) => {
+          const bar = meta.data[i];
+          if (!bar) return;
+          // days above bar
+          ctx.font = '700 11px Inter, system-ui, sans-serif';
+          ctx.fillStyle = '#e2e8f0'; ctx.textBaseline = 'bottom';
+          ctx.fillText(`${avg}d`, bar.x, bar.y - 4);
+          // n= inside bar
+          ctx.font = '700 11px Inter, system-ui, sans-serif';
+          ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+          const cy = (bar.y + bar.base) / 2;
+          if (bar.base - bar.y > 16) ctx.fillText(`n=${cohortN[i]}`, bar.x, cy);
+        });
+        ctx.restore();
+      }
+    };
+
+    makeChart('timeToHireChart', {
+      type: 'bar',
+      data: {
+        labels: tthLabels,
+        datasets: [{
+          label: 'Días promedio',
+          data: cohortAvg,
+          backgroundColor: cohortAvg.map(d =>
+            d <= 14 ? COLORS.green+'bb' : d <= 30 ? COLORS.yellow+'bb' : COLORS.red+'bb'
+          ),
+          borderColor: cohortAvg.map(d =>
+            d <= 14 ? COLORS.green : d <= 30 ? COLORS.yellow : COLORS.red
+          ),
+          borderWidth: 1, borderRadius: 4,
+        }]
+      },
+      plugins: [ tthPlugin ],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: false },
+          tooltip: { callbacks: {
+            title: ctx => `Cohort ${ctx[0].label}`,
+            label: ctx => {
+              const i = ctx.dataIndex;
+              return [
+                ` Promedio: ${cohortAvg[i]}d`,
+                ` Mín: ${cohortMin[i]}d · Máx: ${cohortMax[i]}d`,
+                ` Contratados: ${cohortN[i]}`,
+              ];
+            }
+          }}
+        },
+        scales: {
+          x: { grid:{display:false} },
+          y: { grid:{color:'#2e334d'}, min:0, ticks:{callback:v=>`${v}d`}, title:{display:true,text:'días promedio',color:'#64748b',font:{size:10}} }
+        }
+      }
+    });
+  }
+
+  // ── MONTHLY CHARTS ────────────────────────────────────────────────────
+  function renderMonthlyCharts(rows) {
+    const nowMX = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Mexico_City'}));
+    const curY  = nowMX.getFullYear();
+    const curMo = nowMX.getMonth() + 1;
+    const curMonthStr = `${curY}-${String(curMo).padStart(2,'0')}`;
+    const dayOfMonth  = nowMX.getDate();
+    const daysInMonth = new Date(curY, curMo, 0).getDate();
+    const projFactor  = daysInMonth / dayOfMonth;
+
+    const monthName = m => {
+      const [y, mo] = m.split('-');
+      return new Date(+y, +mo-1, 1).toLocaleDateString('es-MX', {month:'short', year:'2-digit'});
+    };
+
+    // Projection note
+    const noteEl = document.getElementById('monthly-proj-note');
+    const curMonthName = new Date(curY, curMo-1, 1).toLocaleDateString('es-MX', {month:'long'});
+    if (noteEl) noteEl.textContent =
+      `${curMonthName.charAt(0).toUpperCase()+curMonthName.slice(1)} proyectado al fin de mes (día ${dayOfMonth} de ${daysInMonth})`;
+
+    // Build monthly aggregates
+    const mMap = {};
+    rows.forEach(r => {
+      const m = (r.inicio||'').slice(0,7);
+      if (!m) return;
+      if (!mMap[m]) mMap[m] = {total:0, presentes:0, aprobEnt:0, aprobPM:0, contrat:0};
+      mMap[m].total++;
+      if (r.asistencia    === 'Realizada') mMap[m].presentes++;
+      if (r.suma_bg       === 'Aprobado')  mMap[m].aprobEnt++;
+      if (r.prueba_manejo === 'Aprobado')  mMap[m].aprobPM++;
+      if (r.firma_contrato)                mMap[m].contrat++;
+    });
+    const firmaMap = {};
+    rows.filter(r => r.firma_contrato).forEach(r => {
+      const m = r.firma_contrato.slice(0,7);
+      firmaMap[m] = (firmaMap[m]||0) + 1;
+    });
+
+    const months = Object.keys(mMap).sort();
+    const labels = months.map(monthName);
+
+    // projected extra on top of actual for current month
+    const extra = (actual) => months.map((m, i) =>
+      m === curMonthStr ? Math.max(0, Math.round(actual[i] * projFactor) - actual[i]) : 0
+    );
+
+    // MoM growth string
+    const momStr = (cur, prev) => {
+      if (!prev) return null;
+      const pct = Math.round((cur - prev) / prev * 100);
+      return `${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`;
+    };
+
+    // Stacked bar factory — all labels via canvas, datalabels disabled
+    const stackedBar = (actualVals, base, maintainAspectRatio = true) => {
+      const extraVals = extra(actualVals);
+      const prevVals  = actualVals.map((v, i) => i > 0 ? actualVals[i-1] : null);
+      return {
+        type: 'bar',
+        data: { labels, datasets: [
+          { label:'Real',       data: actualVals, backgroundColor: base+'bb', borderColor: base,      borderWidth:1, borderRadius:4, stack:'st' },
+          { label:'Proyectado', data: extraVals,  backgroundColor: base+'35', borderColor: base+'70', borderWidth:1,                stack:'st' },
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio,
+          layout: { padding: { top: 28 } },
+          plugins: {
+            legend:     { display: false },
+            datalabels: { display: false },   // disabled — canvas plugin handles labels
+            tooltip: { callbacks: { label: ctx =>
+              ctx.datasetIndex === 0
+                ? ` Real: ${ctx.raw}`
+                : ctx.raw > 0 ? ` Proyectado total: ~${actualVals[ctx.dataIndex] + ctx.raw}` : ''
+            }}
+          },
+          scales: {
+            x: { grid:{display:false}, stacked:true },
+            y: { grid:{color:'#2e334d'}, stacked:true, min:0 }
+          }
+        },
+        plugins: [ makeLabelsPlugin(actualVals, extraVals, prevVals) ]
+      };
+    };
+
+    makeChart('weeklyMonthChart', stackedBar(months.map(m=>mMap[m].total),     COLORS.indigo));
+    makeChart('monthPresChart',   stackedBar(months.map(m=>mMap[m].presentes), COLORS.cyan,   false));
+    makeChart('monthEntChart',    stackedBar(months.map(m=>mMap[m].aprobEnt),  COLORS.green,  false));
+    makeChart('monthPMChart',     stackedBar(months.map(m=>mMap[m].aprobPM),   COLORS.yellow, false));
+
+    // Contrataciones — keyed on firma_contrato date
+    const firmaMonths = [...new Set([...months, ...Object.keys(firmaMap)])].sort();
+    const firmaLabels = firmaMonths.map(monthName);
+    const firmaActual = firmaMonths.map(m => firmaMap[m] || 0);
+    const firmaExtra  = firmaMonths.map((m, i) =>
+      m === curMonthStr ? Math.max(0, Math.round(firmaActual[i] * projFactor) - firmaActual[i]) : 0
+    );
+    const firmaPrev   = firmaActual.map((v, i) => i > 0 ? firmaActual[i-1] : null);
+    makeChart('contratacionesMonthChart', {
+      type: 'bar',
+      data: { labels: firmaLabels, datasets: [
+        { label:'Real',       data: firmaActual, backgroundColor: COLORS.green+'bb', borderColor: COLORS.green,      borderWidth:1, borderRadius:4, stack:'st' },
+        { label:'Proyectado', data: firmaExtra,  backgroundColor: COLORS.green+'35', borderColor: COLORS.green+'70', borderWidth:1,                stack:'st' },
+      ]},
+      plugins: [ makeLabelsPlugin(firmaActual, firmaExtra, firmaPrev) ],
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend:     { display: false },
+          datalabels: { display: false },
+          tooltip: { callbacks: { label: ctx =>
+            ctx.datasetIndex === 0 ? ` Real: ${ctx.raw}` : ctx.raw > 0 ? ` Proy. total: ~${firmaActual[ctx.dataIndex]+ctx.raw}` : ''
+          }}
+        },
+        scales: { x:{grid:{display:false},stacked:true}, y:{grid:{color:'#2e334d'},stacked:true,min:0} }
+      }
+    });
+
+    // 8. Conversion rates line chart — always divide by actual total (never projected)
+    const convMonth = months.map(m => {
+      const {total:t, presentes:p, aprobEnt, aprobPM, contrat} = mMap[m];
+      return { llego:+pct1(p,t||1), ent:+pct1(aprobEnt,t||1), pm:+pct1(aprobPM,t||1), cont:+pct1(contrat,t||1) };
+    });
+    makeChart('conversionMonthChart', { type:'line', data:{ labels, datasets:[
+      { label:'Llegó a entrevista',   data:convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
+      { label:'Aprobó entrevista',    data:convMonth.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
+      { label:'Aprobó prueba manejo', data:convMonth.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+      { label:'Contratado',           data:convMonth.map(d=>d.cont),  borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
+    ]}, options:{
+      layout:{padding:{top:20}},
+      plugins:{
+        legend:{position:'bottom',labels:{padding:10,font:{size:11}}},
+        datalabels:{display:true,anchor:'top',align:'top',clip:false,font:{size:10,weight:'600'},color:'#e2e8f0',formatter:(v)=>v>0?v+'%':''},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}
+      },
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0}},
+      responsive:true
+    }});
+  }
+
+  // ── BACKUP TAB ────────────────────────────────────────────────────────
+  let _backupRendered = false;
+  function renderBackup(rows) {
+    if (_backupRendered) return;
+    _backupRendered = true;
+    const presentes = rows.filter(r => r.asistencia === 'Realizada');
+
+    // ENTREVISTA DONUT ────────────────────────────────────────────────
+    const aprobBG    = presentes.filter(r => r.suma_bg === 'Aprobado').length;
+    const noAprobEnt = presentes.filter(r => r.estado_entrevista === 'No aprobado').length;
+    const seRetiro   = presentes.filter(r => r.estado_entrevista === 'Se retiró').length;
+    const sinEstado  = presentes.filter(r => !r.estado_entrevista).length;
+    const declinoEnt = presentes.filter(r => r.estado_entrevista === 'Declinó oferta').length;
+    const bgFallo    = presentes.filter(r => r.estado_entrevista === 'Aprobado' && r.suma_bg === 'No aprobado').length;
+    makeChart('entrevistaChart', { type:'doughnut', data:{ labels:[
+      `Aprobado entrev+BG (${aprobBG})`,`No aprobado (${noAprobEnt})`,`Se retiró (${seRetiro})`,
+      `Sin estado / pendiente (${sinEstado})`,`Declinó en entrevista (${declinoEnt})`,`BG reprobado (${bgFallo})`
+    ], datasets:[{ data:[aprobBG,noAprobEnt,seRetiro,sinEstado,declinoEnt,bgFallo], backgroundColor:[COLORS.green,COLORS.red,COLORS.slate,COLORS.yellow,COLORS.purple,COLORS.pink], borderWidth:2, borderColor:'#1a1d27' }]},
+    options:{ cutout:'60%', plugins:{ legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{color:'#fff',font:{weight:'bold',size:12},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); const p=Math.round(v/t*100); return p<3?'':p+'%'; }} }, responsive:true } });
+
+    // PRUEBA MANEJO DONUT ─────────────────────────────────────────────
+    const conPrueba  = rows.filter(r => r.prueba_manejo);
+    const pmAprobado = conPrueba.filter(r => r.prueba_manejo === 'Aprobado').length;
+    const pmNoAprob  = conPrueba.filter(r => r.prueba_manejo === 'No aprobado').length;
+    const pmSin      = conPrueba.filter(r => r.prueba_manejo === 'Sin prueba de manejo').length;
+    const pmDeclino  = conPrueba.filter(r => r.prueba_manejo === 'Declinó proceso').length;
+    makeChart('pruebaDonutChart', { type:'doughnut', data:{ labels:[`Aprobado (${pmAprobado})`,`No aprobado (${pmNoAprob})`,`Sin prueba (${pmSin})`,`Declinó proceso (${pmDeclino})`], datasets:[{ data:[pmAprobado,pmNoAprob,pmSin,pmDeclino], backgroundColor:[COLORS.green,COLORS.red,COLORS.slate,COLORS.yellow], borderWidth:2, borderColor:'#1a1d27' }]},
+    options:{ cutout:'60%', plugins:{ legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, datalabels:{color:'#fff',font:{weight:'bold',size:12},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); const p=Math.round(v/t*100); return p<3?'':p+'%'; }} } } });
+
+    // STATUS DRIVER ───────────────────────────────────────────────────
+    const statusMap = counter(presentes, r => r.status_driver || 'Sin status asignado');
+    const statusOrder = ['Rechazado','Contratado','Declinó oferta','Listo para onboarding','Sin status asignado','Contrato no firmado','Declinó proceso','En espera','No llegó a onboarding'];
+    const statusColors = [COLORS.red,COLORS.green,COLORS.yellow,COLORS.cyan,'#4b5563',COLORS.purple,COLORS.slate,COLORS.slate,COLORS.pink];
+    const statusLabels = statusOrder.filter(k => statusMap[k]);
+    const statusColFilt= statusOrder.map((k,i)=>({k,c:statusColors[i]})).filter(x=>statusMap[x.k]).map(x=>x.c);
+    makeChart('statusDriverChart', { type:'bar', data:{ labels:statusLabels, datasets:[{ data:statusLabels.map(k=>statusMap[k]), backgroundColor:statusColFilt, borderRadius:4 }]},
+    options:{ indexAxis:'y', plugins:{legend:{display:false},datalabels:{display:false}}, scales:{x:{grid:{color:'#2e334d'}},y:{grid:{display:false},ticks:{font:{size:11}}}}, responsive:true } });
+
+    // RAZONES DECLINA ─────────────────────────────────────────────────
+    const declinados = rows.filter(r => r.declina_oferta === 'Sí');
+    const razonMap = counter(declinados, normalizaRazon);
+    const razonSorted = Object.entries(razonMap).sort((a,b)=>b[1]-a[1]);
+    const razonColors = { 'Sueldo / Bonos / Métricas':COLORS.red, 'Sin especificar':COLORS.slate, 'Horarios':COLORS.yellow, 'No le interesa':COLORS.purple, 'Distancia':COLORS.cyan, 'Otro':COLORS.pink };
+    makeChart('declinaChart', { type:'bar', data:{ labels:razonSorted.map(r=>r[0]), datasets:[{ data:razonSorted.map(r=>r[1]), backgroundColor:razonSorted.map(r=>razonColors[r[0]]||COLORS.slate), borderRadius:4 }]},
+    options:{ indexAxis:'y', plugins:{legend:{display:false},datalabels:{display:false}}, scales:{x:{grid:{color:'#2e334d'}},y:{grid:{display:false},ticks:{font:{size:11}}}} } });
+  }
+
+  // ── TAB SWITCHING ────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'detalle'  && window._allRows) renderDetalleAsistencia(window._allRows);
+    if (name === 'pipeline' && window._allRows) renderPipeline(window._allRows);
+    if (name === 'backup'   && window._allRows) renderBackup(window._allRows);
+    if (name === 'marketing' && window._allRows && window._adsRows) renderMarketing(window._allRows, window._adsRows);
+  }
+
+  // ── PIPELINE ACTIVO ──────────────────────────────────────────────────
+  const STAGES = [
+    'Pendiente resultado entrevista',
+    'Entrevista aprobada — pend. BackCheck',
+    'BackCheck aprobado — pend. PM',
+    'PM aprobada — pend. onboarding',
+    'Onboarding asignado',
+    'Post-onboarding / Docs',
+  ];
+  const STAGE_COLORS = [
+    COLORS.yellow, COLORS.cyan, COLORS.indigo,
+    COLORS.purple, COLORS.green, '#10b981',
+  ];
+
+  function getPipelineStage(r) {
+    if (r.docs_y_didi)                          return 'Post-onboarding / Docs';
+    if (r.asistencia_onboarding === 'Asistió')  return 'Post-onboarding / Docs';
+    if (r.onboarding_dia)                       return 'Onboarding asignado';
+    if (r.prueba_manejo === 'Aprobado')         return 'PM aprobada — pend. onboarding';
+    if (r.suma_bg === 'Aprobado')               return 'BackCheck aprobado — pend. PM';
+    if (r.estado_entrevista === 'Aprobado')     return 'Entrevista aprobada — pend. BackCheck';
+    return 'Pendiente resultado entrevista';
+  }
+
+  function isActivePipeline(r) {
+    if (r.asistencia !== 'Realizada') return false;
+    if (r.firma_contrato)             return false;
+    if (['No aprobado','Se retiró','Declinó oferta'].includes(r.estado_entrevista)) return false;
+    if (r.suma_bg === 'No aprobado')  return false;
+    if (r.prueba_manejo === 'No aprobado') return false;
+    if (r.prueba_manejo === 'Declinó proceso') return false;
+    if (r.declina_oferta && r.declina_oferta !== 'No') return false;
+    return true;
+  }
+
+  function renderPipeline(rows) {
+    // Friday 3pm cutoff for current week
+    const nowMX   = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Mexico_City'}));
+    const todayMX = new Date(nowMX.getFullYear(), nowMX.getMonth(), nowMX.getDate());
+    const dow = todayMX.getDay(); // 0=Sun … 6=Sat
+    const daysSinceFri = dow === 5 ? (nowMX.getHours() >= 15 ? 0 : 7) : (dow + 2) % 7;
+    const lastFri = new Date(todayMX);
+    lastFri.setDate(lastFri.getDate() - daysSinceFri);
+    const cutoffStr = fmtDate(lastFri);
+
+    const active = rows.filter(isActivePipeline);
+
+    // weekMapAll: all active candidates (used for pivot table + detail list)
+    const weekMapAll = {};
+    active.forEach(r => {
+      const w = isoWeek((r.inicio || '').slice(0, 10));
+      if (!w) return;
+      if (!weekMapAll[w]) weekMapAll[w] = {};
+      const s = getPipelineStage(r);
+      weekMapAll[w][s] = (weekMapAll[w][s] || 0) + 1;
+    });
+
+    // Chart: group by inicio week (≤ cutoff for current partial week)
+    const weekMap = {};
+    active.forEach(r => {
+      const inicio = (r.inicio || '').slice(0, 10);
+      if (inicio > cutoffStr) return;
+      const w = isoWeek(inicio);
+      if (!w) return;
+      if (!weekMap[w]) weekMap[w] = {};
+      const s = getPipelineStage(r);
+      weekMap[w][s] = (weekMap[w][s] || 0) + 1;
+    });
+
+    const chartWeeks = Object.keys(weekMap).map(Number).sort((a, b) => a - b);
+    makeChart('pipelineEvolChart', {
+      type: 'bar',
+      data: {
+        labels: chartWeeks.map(w => `S${w}`),
+        datasets: STAGES.map((stage, i) => ({
+          label: stage,
+          data: chartWeeks.map(w => weekMap[w][stage] || 0),
+          backgroundColor: STAGE_COLORS[i] + 'bb',
+          borderColor: STAGE_COLORS[i],
+          borderWidth: 1,
+          borderRadius: 4,
+          stack: 'stack',
+        })),
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { padding: 12, font: { size: 11 }, color: '#e2e8f0' } },
+          datalabels: { display: false },
+        },
+        scales: {
+          x: { grid: { display: false }, stacked: true },
+          y: { grid: { color: '#2e334d' }, stacked: true, min: 0 },
+        },
+      },
+    });
+
+    // Pivot table: rows=stages, cols=weeks (uses all active, no cutoff)
+    const pivotWeeks = Object.keys(weekMapAll).map(Number).sort((a, b) => a - b);
+    const th = (t, extra='') => `<th style="padding:7px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;${extra}">${t}</th>`;
+    const td = (v, color='', extra='') => `<td style="padding:7px 12px;text-align:center;border-bottom:1px solid var(--border);border-right:1px solid var(--border);${color ? `color:${color};font-weight:700;` : 'color:var(--muted);'}${extra}">${v || '—'}</td>`;
+    const pivotRows = STAGES.map((stage, si) => {
+      const rowTotal = pivotWeeks.reduce((s, w) => s + (weekMapAll[w][stage] || 0), 0);
+      const cells = pivotWeeks.map(w => {
+        const v = weekMapAll[w][stage] || 0;
+        return td(v || '', v ? STAGE_COLORS[si] : '');
+      }).join('');
+      return `<tr>
+        <td style="padding:7px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap">
+          <span style="background:${STAGE_COLORS[si]}22;color:${STAGE_COLORS[si]};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">${stage}</span>
+        </td>
+        ${cells}
+        ${td(`<strong>${rowTotal}</strong>`, rowTotal ? '#e2e8f0' : '', 'background:var(--surface2)')}
+      </tr>`;
+    });
+    const colTotals = pivotWeeks.map(w => STAGES.reduce((s, stage) => s + (weekMapAll[w][stage] || 0), 0));
+    const grandTotal = colTotals.reduce((a, b) => a + b, 0);
+    document.getElementById('pipeline-pivot').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr>
+          ${th('Etapa', 'text-align:left')}
+          ${pivotWeeks.map(w => th(`S${w}`, 'text-align:center')).join('')}
+          ${th('Total', 'text-align:center;background:var(--surface2)')}
+        </tr></thead>
+        <tbody>
+          ${pivotRows.join('')}
+          <tr style="background:var(--surface2)">
+            <td style="padding:7px 12px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;color:#e2e8f0">Total</td>
+            ${colTotals.map(v => td(`<strong>${v}</strong>`, '#e2e8f0')).join('')}
+            ${td(`<strong>${grandTotal}</strong>`, '#e2e8f0')}
+          </tr>
+        </tbody>
+      </table>`;
+
+    // Table — sorted by stage (latest stage first) then by inicio desc
+    const stageIdx = Object.fromEntries(STAGES.map((s, i) => [s, i]));
+    const sorted = [...active].sort((a, b) => {
+      const di = stageIdx[getPipelineStage(b)] - stageIdx[getPipelineStage(a)];
+      return di !== 0 ? di : (b.inicio || '').localeCompare(a.inicio || '');
+    });
+
+    document.getElementById('pipeline-count').textContent = active.length;
+    const colorMap = Object.fromEntries(STAGES.map((s, i) => [s, STAGE_COLORS[i]]));
+
+    document.getElementById('pipeline-tbody').innerHTML = sorted.map(r => {
+      const stage = getPipelineStage(r);
+      const color = colorMap[stage];
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 12px;font-weight:600;white-space:nowrap">${r.candidato || '—'}</td>
+        <td style="padding:8px 12px;color:var(--muted)">S${isoWeek(r.inicio) || '?'}</td>
+        <td style="padding:8px 12px;color:var(--muted)">${r.inicio || '—'}</td>
+        <td style="padding:8px 12px"><span style="background:${color}22;color:${color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${stage}</span></td>
+        <td style="padding:8px 12px;color:var(--muted)">${r.canal || '—'}</td>
+        <td style="padding:8px 12px;color:var(--muted)">${r.entrevistador || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    window._pipelineRows = sorted.map(r => ({
+      Candidato:            r.candidato || '',
+      Semana:               `S${isoWeek(r.inicio) || ''}`,
+      Inicio:               r.inicio || '',
+      Etapa:                getPipelineStage(r),
+      Canal:                r.canal || '',
+      Entrevistador:        r.entrevistador || '',
+      Estado_entrevista:    r.estado_entrevista || '',
+      Background_check:     r.background_check || '',
+      Suma_BG:              r.suma_bg || '',
+      Prueba_manejo:        r.prueba_manejo || '',
+      Onboarding_dia:       r.onboarding_dia || '',
+      Asist_onboarding:     r.asistencia_onboarding || '',
+      Docs_y_DiDi:          r.docs_y_didi || '',
+    }));
+  }
+
+  function exportPipeline() {
+    const rows = window._pipelineRows;
+    if (!rows?.length) return;
+    const headers = Object.keys(rows[0]);
+    const csv = [
+      headers.join(','),
+      ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `pipeline-activo-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  }
+
+  // ── HELPERS (DETALLE) ────────────────────────────────────────────────
+  function parseDateLocal(s) {
+    const [y,m,d] = s.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  const fmtDate   = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const DOW_ORDER = d => (parseDateLocal(d).getDay() + 6) % 7; // 0=Mon
+  const DOW_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const DOW_FULL  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+  // ── DETALLE ASISTENCIA ───────────────────────────────────────────────
+  function renderDetalleAsistencia(rows) {
+    // Presence date = hora_llegada (Mexico local date) when available,
+    // fallback to inicio when asistencia=Realizada
+    const presentesByDay = {};   // YYYY-MM-DD → { presentes, rows }
+    const scheduledByDay = {};   // YYYY-MM-DD → count  (from inicio)
+
+    rows.forEach(r => {
+      if (r.inicio) {
+        const d = r.inicio.slice(0,10);
+        scheduledByDay[d] = (scheduledByDay[d] || 0) + 1;
+      }
+      const presDate = r.hora_llegada
+        ? r.hora_llegada.slice(0,10)
+        : (r.asistencia === 'Realizada' ? (r.inicio || '').slice(0,10) : null);
+      if (!presDate) return;
+      if (!presentesByDay[presDate]) presentesByDay[presDate] = { presentes: 0, rows: [] };
+      presentesByDay[presDate].presentes++;
+      presentesByDay[presDate].rows.push(r);
+    });
+
+    // Group presence dates by ISO week
+    const weekPresenceDays = {};
+    Object.keys(presentesByDay).sort().forEach(d => {
+      const w = isoWeek(d);
+      if (!weekPresenceDays[w]) weekPresenceDays[w] = [];
+      weekPresenceDays[w].push(d);
+    });
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayStr    = fmtDate(today);
+    const currentWeek = isoWeek(todayStr);
+
+    // Cutoff 3pm Mexico City — data is complete for a day only after 3pm
+    const nowMX    = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Mexico_City'}));
+    const todayDow = (today.getDay() + 6) % 7;           // 0=Mon … 4=Fri
+    // Before 3pm: exclude today (not yet complete); after 3pm: include today
+    const effectiveDow = nowMX.getHours() >= 15 ? todayDow : todayDow - 1;
+    const allWeeks = Object.keys(weekPresenceDays).map(Number).sort((a,b)=>a-b);
+
+    window._weekDayData = { weekPresenceDays, presentesByDay, scheduledByDay, allWeeks, rows };
+
+    // Helper: Mon-Fri date strings for week w (memoized per renderDetalleAsistencia call)
+    const wDatesCache = {};
+    function weekDatesMonFri(w) {
+      if (wDatesCache[w]) return wDatesCache[w];
+      const sample = weekPresenceDays[w]?.[0];
+      if (!sample) return (wDatesCache[w] = Array(5).fill(null));
+      const dt  = parseDateLocal(sample);
+      const dow = (dt.getDay() + 6) % 7;
+      const mon = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - dow);
+      return (wDatesCache[w] = Array.from({length: 5}, (_, i) => {
+        const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+        return fmtDate(d);
+      }));
+    }
+
+    // ── WTD BAR CHART — X: semanas, Y: presentes acum. hasta día actual ──
+    // todayDow = 0(Lun)…4(Vie); muestra los mismos días en todas las semanas
+    const weeksForChart = allWeeks;
+    const dowLabel = effectiveDow < 0
+      ? 'Sin días completos'
+      : DOW_SHORT.slice(0, effectiveDow + 1).join(' + ');
+    const BAR_COLORS = weeksForChart.map(w =>
+      w === currentWeek ? COLORS.cyan : 'rgba(99,102,241,0.55)'
+    );
+    const BAR_BORDER = weeksForChart.map(w =>
+      w === currentWeek ? COLORS.cyan : '#6366f1'
+    );
+
+    // Single pass: presentes + scheduled WTD for each week
+    const wtdStats = weeksForChart.map(w => {
+      const wDates = weekDatesMonFri(w);
+      let pres = 0, sched = 0;
+      for (let dow = 0; dow <= effectiveDow; dow++) {
+        const d = wDates[dow];
+        if (d) {
+          if (presentesByDay[d]) pres += presentesByDay[d].presentes;
+          sched += scheduledByDay[d] || 0;
+        }
+      }
+      return { pres, sched };
+    });
+    const wtdBarData   = wtdStats.map(s => s.pres);
+    const wtdSchedData = wtdStats.map(s => s.sched);
+    const wtdRateData  = wtdStats.map(s => s.sched ? Math.round(s.pres / s.sched * 100) : null);
+
+    // Goal = max scheduled WTD × 20%
+    const maxSchedWTD   = Math.max(...wtdSchedData.filter(Boolean));
+    const goalPresentes = Math.round(maxSchedWTD * 0.20);
+    const currIdx       = weeksForChart.indexOf(currentWeek);
+
+    makeChart('wtdChart', {
+      type: 'bar',
+      data: {
+        labels: weeksForChart.map(w => `S${w}`),
+        datasets: [
+          {
+            label: `Presentes acum. (${dowLabel})`,
+            data: wtdBarData,
+            backgroundColor: BAR_COLORS,
+            borderColor: BAR_BORDER,
+            borderWidth: 1.5,
+            borderRadius: 4,
+            yAxisID: 'y',
+          },
+          {
+            label: 'Tasa WTD',
+            data: wtdRateData,
+            type: 'line',
+            yAxisID: 'y2',
+            borderColor: '#f59e0b',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 5,
+            pointBackgroundColor: '#f59e0b',
+            tension: 0.2,
+            datalabels: {
+              display: true,
+              anchor: 'top', align: 'top',
+              color: '#f59e0b', font: { size: 11, weight: '700' },
+              formatter: v => v != null ? v + '%' : ''
+            },
+          },
+        ]
+      },
+      options: {
+        plugins: {
+          legend: {
+            display: true, position: 'bottom',
+            labels: { padding: 12, font: { size: 11 }, color: '#94a3b8',
+              filter: item => item.datasetIndex < 2 }
+          },
+          datalabels: {
+            display: ctx => ctx.datasetIndex === 0,
+            anchor: 'center', align: 'center',
+            color: '#fff', font: { size: 12, weight: '700' },
+            formatter: v => v || ''
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                if (ctx.datasetIndex === 0) return ` ${ctx.parsed.y} presentes (${dowLabel})`;
+                if (ctx.datasetIndex === 1) return ` Tasa WTD: ${ctx.parsed.y}%`;
+                if (ctx.datasetIndex === 2) return ` Meta: ${ctx.parsed.y} presentes`;
+                return ` Meta tasa: ${ctx.parsed.y}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: '#2e334d' }, min: 0, suggestedMax: Math.ceil(Math.max(goalPresentes, ...wtdBarData.filter(Boolean), 0) * 1.2 / 10) * 10 },
+          y2: {
+            position: 'right',
+            min: 0,
+            grid: { display: false },
+            ticks: { color: '#f59e0b', callback: v => v + '%' }
+          }
+        }
+      },
+      plugins: [{
+        id: 'goalDashedBar',
+        afterDatasetsDraw(chart) {
+          if (currIdx < 0) return;
+          const meta0 = chart.getDatasetMeta(0);
+          if (!meta0?.data?.[currIdx]) return;
+          const bar = meta0.data[currIdx];
+          const { x, width, base } = bar.getProps(['x','width','base'], true);
+          const goalY = chart.scales['y'].getPixelForValue(goalPresentes);
+          if (goalY >= base) return;
+          const c = chart.ctx;
+          c.save();
+          c.fillStyle = 'rgba(34,197,94,0.08)';
+          c.fillRect(x - width / 2, goalY, width, base - goalY);
+          c.setLineDash([5, 4]);
+          c.strokeStyle = '#22c55e';
+          c.lineWidth = 2;
+          c.strokeRect(x - width / 2, goalY, width, base - goalY);
+          c.font = 'bold 11px sans-serif';
+          c.fillStyle = '#22c55e';
+          c.setLineDash([]);
+          c.textAlign = 'center';
+          c.fillText(`${goalPresentes} (20%)`, x, goalY - 6);
+          c.restore();
+        }
+      }]
+    });
+
+    // ── WEEK TABLE — always Mon → Fri ──
+    const tableEl = document.getElementById('weekly-day-table');
+    let html = '';
+    allWeeks.forEach(w => {
+      const wDates = weekDatesMonFri(w);
+      let wPres = 0, wSched = 0;
+      for (const d of wDates) {
+        if (d) {
+          if (presentesByDay[d]) wPres += presentesByDay[d].presentes;
+          wSched += scheduledByDay[d] || 0;
+        }
+      }
+      const wRate = wSched ? Math.round(wPres / wSched * 100) : 0;
+      html += `<div style="margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent2);margin-bottom:8px">
+          S${w} &nbsp;·&nbsp; ${wDates[0]?.slice(5).replace('-','/')} – ${wDates[4]?.slice(5).replace('-','/')}
+        </div>
+        <table class="week-table">
+          <thead><tr><th>Día</th><th>Fecha</th><th>Prog.</th><th>Pres.</th><th>No-show</th><th>Tasa</th></tr></thead>
+          <tbody>`;
+      wDates.forEach((d, i) => {
+        const pres  = (d && presentesByDay[d]) ? presentesByDay[d].presentes : 0;
+        const sched = d ? (scheduledByDay[d] || 0) : 0;
+        const rate  = sched ? Math.round(pres / sched * 100) : null;
+        const cls   = rate === null ? '' : rate >= 20 ? 'rate-good' : rate >= 10 ? 'rate-warn' : 'rate-bad';
+        html += `<tr>
+          <td>${DOW_SHORT[i]}</td>
+          <td>${d ? d.slice(5).replace('-','/') : '—'}</td>
+          <td style="color:var(--muted)">${sched || '—'}</td>
+          <td style="color:var(--accent2);font-weight:700">${pres || (rate !== null ? 0 : '—')}</td>
+          <td style="color:${sched-pres>0?'var(--danger)':'var(--muted)'}">${sched ? sched-pres : '—'}</td>
+          <td class="${cls}">${rate !== null ? rate+'%' : '—'}</td>
+        </tr>`;
+      });
+      html += `</tbody>
+          <tfoot><tr class="sum-row">
+            <td colspan="2">Total semana</td>
+            <td>${wSched}</td><td>${wPres}</td><td>${wSched-wPres}</td><td>${wRate}%</td>
+          </tr></tfoot>
+        </table></div>`;
+    });
+    tableEl.innerHTML = html;
+
+    // ── DAY COMPARISON — pivot: filas=día, columnas=semana ──
+    const compEl = document.getElementById('day-comparison');
+    const compWeeks = allWeeks.slice(-6);
+    let compHtml = `<div style="overflow-x:auto">
+      <table class="week-table">
+        <thead><tr>
+          <th style="text-align:left">Día</th>
+          ${compWeeks.map(w => `<th style="text-align:center">S${w}</th>`).join('')}
+        </tr></thead>
+        <tbody>`;
+    for (let dow = 0; dow < 5; dow++) {
+      compHtml += `<tr><td style="font-weight:600">${DOW_FULL[dow]}</td>`;
+      compWeeks.forEach(w => {
+        const d = weekDatesMonFri(w)[dow];
+        const pres  = (d && presentesByDay[d]) ? presentesByDay[d].presentes : null;
+        const sched = d ? (scheduledByDay[d] || 0) : 0;
+        const isCurr = w === currentWeek;
+        if (pres === null) {
+          compHtml += `<td style="text-align:center;color:var(--muted)">—</td>`;
+        } else {
+          const rate = sched ? Math.round(pres/sched*100) : null;
+          const rc   = rate !== null ? (rate>=20?'var(--success)':rate>=10?'var(--warning)':'var(--danger)') : 'var(--muted)';
+          const rStr = rate !== null ? `<br/><span style="font-size:10px;color:${rc}">${rate}%</span>` : '';
+          compHtml += `<td style="text-align:center;${isCurr?'background:var(--surface2);border-radius:4px':''}">
+            <strong style="color:${isCurr?'var(--accent2)':'#fff'}">${pres}</strong>${rStr}
+          </td>`;
+        }
+      });
+      compHtml += `</tr>`;
+    }
+    compHtml += `</tbody><tfoot><tr class="sum-row"><td>Total</td>`;
+    compWeeks.forEach(w => {
+      const tot = weekDatesMonFri(w).reduce((s,d) => s + (d && presentesByDay[d] ? presentesByDay[d].presentes : 0), 0);
+      compHtml += `<td style="text-align:center">${tot}</td>`;
+    });
+    compHtml += `</tr></tfoot></table></div>`;
+    compEl.innerHTML = compHtml;
+
+    // ── REAGENDADOS ──
+    document.getElementById('reagendados-section').innerHTML = `
+      <div style="background:var(--surface2);border-radius:8px;padding:16px;display:flex;align-items:flex-start;gap:14px">
+        <div style="font-size:22px;flex-shrink:0">⚠️</div>
+        <div>
+          <div style="font-weight:700;color:var(--warning);margin-bottom:6px">Pendiente: columna hora_llegada en Supabase</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.7">
+            Ejecuta en Supabase SQL Editor:<br/>
+            <code style="color:var(--accent2)">ALTER TABLE funnel ADD COLUMN IF NOT EXISTS hora_llegada text;</code><br/>
+            Luego vuelve a correr el script de carga. El análisis de reagendados quedará habilitado automáticamente.
+          </div>
+        </div>
+      </div>`;
+
+    // ── BACKUP LIST ──
+    const chipsEl = document.getElementById('backup-chips');
+    chipsEl.innerHTML = allWeeks.map((w, i) =>
+      `<span class="week-chip${i === allWeeks.length-1 ? ' active' : ''}" onclick="selectBackupWeek(${w},this)">S${w}</span>`
+    ).join('');
+    renderBackupList(allWeeks[allWeeks.length-1]);
+  }
+
+  function renderBackupList(week) {
+    const { weekPresenceDays, presentesByDay } = window._weekDayData;
+    const days = weekPresenceDays[week] || [];
+    const presentes = days.flatMap(d => (presentesByDay[d]?.rows || []))
+      .sort((a,b) => ((a.hora_llegada||a.inicio||'')).localeCompare((b.hora_llegada||b.inicio||'')));
+    const tbody = document.getElementById('backup-body');
+    document.getElementById('backup-count').textContent = `${presentes.length} presentes en semana ${week}`;
+    tbody.innerHTML = presentes.length ? presentes.map((r, i) => {
+      const fecha = (r.hora_llegada || r.inicio || '').slice(5).replace('-','/');
+      const est = r.estado_entrevista || '—';
+      const estColor = est === 'Aprobado' ? 'var(--success)' : est === 'No aprobado' ? 'var(--danger)' : 'var(--muted)';
+      return `<tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td style="color:var(--muted);font-size:11px">${r.id_candidato||'—'}</td>
+        <td style="font-weight:600;color:#fff">${r.candidato||'—'}</td>
+        <td>${fecha}</td>
+        <td style="color:var(--muted)">${r.canal||'—'}</td>
+        <td style="color:var(--muted)">${r.entrevistador||'—'}</td>
+        <td style="color:${estColor}">${est}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin presentes esta semana</td></tr>`;
+  }
+
+  window.selectBackupWeek = function(week, el) {
+    document.querySelectorAll('.week-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    renderBackupList(week);
+  };
+
+  // ── FETCH + MAIN ─────────────────────────────────────────────────────
+  // ── MARKETING TAB ────────────────────────────────────────────────────
+  let _mktRendered = false;
+  function renderMarketing(rows, adsRows) {
+    if (_mktRendered) return;
+    _mktRendered = true;
+
+    const nowMX       = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Mexico_City'}));
+    const curY        = nowMX.getFullYear();
+    const curMo       = nowMX.getMonth() + 1;
+    const curMonthStr = `${curY}-${String(curMo).padStart(2,'0')}`;
+    const dayOfMonth  = nowMX.getDate();
+    const daysInMonth = new Date(curY, curMo, 0).getDate();
+    const projFactor  = daysInMonth / dayOfMonth;
+
+    const curMonthName = new Date(curY, curMo-1, 1).toLocaleDateString('es-MX', {month:'long'});
+    const noteEl = document.getElementById('mkt-proj-note');
+    if (noteEl) noteEl.textContent =
+      `${curMonthName.charAt(0).toUpperCase()+curMonthName.slice(1)} proyectado al fin de mes (día ${dayOfMonth} de ${daysInMonth})`;
+
+    const monthName = m => {
+      const [y, mo] = m.split('-');
+      return new Date(+y, +mo-1, 1).toLocaleDateString('es-MX', {month:'short', year:'2-digit'});
+    };
+    const fmtUSD = v => v == null ? '' : `$${Math.round(v).toLocaleString()}`;
+
+    // ── Build funnel stats by ISO week ──────────────────────────────
+    const wkFunnel = {};
+    rows.forEach(r => {
+      const w = isoWeek(r.inicio);
+      if (!w) return;
+      if (!wkFunnel[w]) wkFunnel[w] = {total:0, presentes:0, aprobEnt:0, contratados:0};
+      wkFunnel[w].total++;
+      if (r.asistencia    === 'Realizada') wkFunnel[w].presentes++;
+      if (r.suma_bg       === 'Aprobado')  wkFunnel[w].aprobEnt++;
+      if (r.firma_contrato)                wkFunnel[w].contratados++;
+    });
+
+    // ── Build ads stats by ISO week & by month ───────────────────────
+    const wkAds = {};    // week# → amount_spent
+    const moAds = {};    // YYYY-MM → amount_spent
+    adsRows.forEach(r => {
+      const w = isoWeek(r.week_start);
+      if (w) wkAds[w] = (wkAds[w] || 0) + (+r.amount_spent || 0);
+      const m = (r.week_start || '').slice(0,7);
+      if (m) moAds[m] = (moAds[m] || 0) + (+r.amount_spent || 0);
+    });
+
+    // Funnel stats by month
+    const moFunnel = {};
+    rows.forEach(r => {
+      const m = (r.inicio||'').slice(0,7);
+      if (!m) return;
+      if (!moFunnel[m]) moFunnel[m] = {total:0, presentes:0, aprobEnt:0, contratados:0};
+      moFunnel[m].total++;
+      if (r.asistencia    === 'Realizada') moFunnel[m].presentes++;
+      if (r.suma_bg       === 'Aprobado')  moFunnel[m].aprobEnt++;
+      if (r.firma_contrato)                moFunnel[m].contratados++;
+    });
+
+    // Shared weeks (have ads data), sorted
+    const adsSortedWeeks = Object.keys(wkAds).map(Number).sort((a,b)=>a-b).filter(w => w >= 15);
+    const wkLabels = adsSortedWeeks.map(w => `S${w}`);
+    const wkSpend  = adsSortedWeeks.map(w => wkAds[w] || 0);
+
+    // $/candidato metrics per week (null if no funnel data)
+    const safe  = (spend, n) => n > 0 ? Math.round(spend / n) : null;
+    const safe2 = (spend, n) => n > 0 ? Math.round(spend / n * 100) / 100 : null;  // 2 decimals
+    const wkPerInvited   = adsSortedWeeks.map(w => safe2(wkAds[w], wkFunnel[w]?.total));
+    const wkPerPresente  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.presentes));
+    const wkPerAprobEnt  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.aprobEnt));
+    const wkPerHired     = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.contratados));
+
+    // ── M1: Weekly spend ─────────────────────────────────────────────
+    makeChart('mktWeekSpendChart', {
+      type: 'bar',
+      data: { labels: wkLabels, datasets: [{
+        data: wkSpend,
+        backgroundColor: COLORS.indigo+'bb', borderColor: COLORS.indigo, borderWidth:1, borderRadius:4,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: true, anchor:'end', align:'top', clip:false, color:'#e2e8f0', font:{size:10,weight:'700'}, formatter: v => `$${Math.round(v/1000*10)/10}k` },
+          tooltip: { callbacks: { label: ctx => ` ${fmtUSD(ctx.raw)}` }}
+        },
+        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, ticks:{callback:v=>`$${Math.round(v/1000)}k`}, min:0} }
+      }
+    });
+
+    // Canvas plugin: draws values above each data point on line charts
+    // fmts = optional array of formatters per dataset (falls back to fmtUSD)
+    const fmtUSD2 = v => v == null ? '' : `$${v.toFixed(2)}`;   // 2 decimals
+    const makeLineLabels = (datasets, fmts) => ({
+      id: 'lineLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = '700 10px Inter, system-ui, sans-serif';
+        datasets.forEach((_, di) => {
+          const meta  = chart.getDatasetMeta(di);
+          const color = chart.data.datasets[di].borderColor;
+          const fmt   = fmts?.[di] || fmtUSD;
+          ctx.fillStyle = color;
+          meta.data.forEach((pt, i) => {
+            const v = chart.data.datasets[di].data[i];
+            if (v == null || v <= 0) return;
+            ctx.fillText(fmt(v), pt.x, pt.y - 6);
+          });
+        });
+        ctx.restore();
+      }
+    });
+
+    // Base options for cost line charts (no datalabels plugin)
+    const lineChartOpts = (datasets) => ({
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 28 } },
+      plugins: {
+        legend: { display: true, position:'bottom', labels:{padding:10,font:{size:11}} },
+        datalabels: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.raw != null ? ` ${ctx.dataset.label}: ${fmtUSD(ctx.raw)}` : '' }}
+      },
+      scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'}, ticks:{callback:v=>fmtUSD(v)}, min:0} }
+    });
+
+    // ── M2: Weekly $/invitado & $/presente ──────────────────────────
+    const m2ds = [
+      { label:'$ / invitado',  data: wkPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / presente', data: wkPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktWeekCostChart', { type:'line', data:{ labels:wkLabels, datasets:m2ds }, plugins:[makeLineLabels(m2ds, [fmtUSD2, fmtUSD])], options:lineChartOpts() });
+
+    // ── M3: Weekly $/ent.aprobada & $/contratado ────────────────────
+    const m3ds = [
+      { label:'$ / ent. aprobada', data: wkPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / contratado',    data: wkPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktWeekHiredChart', { type:'line', data:{ labels:wkLabels, datasets:m3ds }, plugins:[makeLineLabels(m3ds)], options:lineChartOpts() });
+
+    // ── Monthly ──────────────────────────────────────────────────────
+    const allMonths = [...new Set([...Object.keys(moAds), ...Object.keys(moFunnel)])].sort();
+    const moLabels  = allMonths.map(monthName);
+    const moSpend   = allMonths.map(m => moAds[m] || 0);
+    const moExtra   = allMonths.map((m, i) =>
+      m === curMonthStr ? Math.max(0, Math.round(moSpend[i] * projFactor) - moSpend[i]) : 0
+    );
+    const moPrev    = moSpend.map((v, i) => i > 0 ? moSpend[i-1] : null);
+
+    // ── M3: Monthly spend (stacked actual + projected) ───────────────
+    // Uses custom plugin with $ formatting
+    const mktSpendPlugin = {
+      id: 'mktSpendLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        ctx.save(); ctx.textAlign = 'center';
+        moSpend.forEach((actual, i) => {
+          const bar0 = meta0.data[i], bar1 = meta1.data[i];
+          if (!bar0) return;
+          if (actual > 0) {
+            ctx.font = '700 11px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+            ctx.fillText(fmtUSD(actual), bar0.x, (bar0.y + bar0.base) / 2);
+          }
+          const ext = moExtra[i] || 0;
+          if (ext > 0 && bar1) {
+            ctx.font = '600 10px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#cbd5e1'; ctx.textBaseline = 'middle';
+            ctx.fillText(`~${fmtUSD(actual+ext)}`, bar1.x, (bar1.y + bar1.base) / 2);
+          }
+          if (i === 0) return;
+          const prev = moPrev[i]; if (!prev) return;
+          const tot = actual + ext;
+          const pct = Math.round((tot - prev) / prev * 100);
+          ctx.font = '700 10px Inter, system-ui, sans-serif';
+          ctx.fillStyle = pct >= 0 ? '#6ee7b7' : '#fca5a5'; ctx.textBaseline = 'bottom';
+          ctx.fillText(`${pct >= 0 ? '▲' : '▼'}${Math.abs(pct)}%`, bar0.x, (ext > 0 && bar1 ? bar1.y : bar0.y) - 4);
+        });
+        ctx.restore();
+      }
+    };
+    // Destroy and recreate with custom plugin
+    makeChart('mktMonthSpendChart', {
+      type: 'bar',
+      data: { labels: moLabels, datasets: [
+        { label:'Real',       data: moSpend, backgroundColor: COLORS.indigo+'bb', borderColor: COLORS.indigo,      borderWidth:1, borderRadius:4, stack:'st' },
+        { label:'Proyectado', data: moExtra, backgroundColor: COLORS.indigo+'35', borderColor: COLORS.indigo+'70', borderWidth:1,                stack:'st' },
+      ]},
+      plugins: [ mktSpendPlugin ],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend: { display: false }, datalabels: { display: false },
+          tooltip: { callbacks: { label: ctx =>
+            ctx.datasetIndex === 0 ? ` Real: ${fmtUSD(ctx.raw)}` : ctx.raw > 0 ? ` Proy. total: ~${fmtUSD(moSpend[ctx.dataIndex]+ctx.raw)}` : ''
+          }}
+        },
+        scales: { x:{grid:{display:false},stacked:true}, y:{grid:{color:'#2e334d'},stacked:true, ticks:{callback:v=>`$${Math.round(v/1000)}k`}, min:0} }
+      }
+    });
+
+    // ── M4: Monthly $/candidato (actual rates, no projection needed) ──
+    const moPerInvited  = allMonths.map(m => safe2(moAds[m]||0, moFunnel[m]?.total));
+    const moPerPresente = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.presentes));
+    const moPerAprobEnt = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.aprobEnt));
+    const moPerHired    = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.contratados));
+
+    // ── M5: Monthly $/invitado & $/presente ─────────────────────────
+    const m5ds = [
+      { label:'$ / invitado',  data: moPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / presente', data: moPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktMonthCostChart', { type:'line', data:{ labels:moLabels, datasets:m5ds }, plugins:[makeLineLabels(m5ds, [fmtUSD2, fmtUSD])], options:lineChartOpts() });
+
+    // ── M6: Monthly $/ent.aprobada & $/contratado ────────────────────
+    const m6ds = [
+      { label:'$ / ent. aprobada', data: moPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / contratado',    data: moPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+    ];
+    makeChart('mktMonthHiredChart', { type:'line', data:{ labels:moLabels, datasets:m6ds }, plugins:[makeLineLabels(m6ds)], options:lineChartOpts() });
+  }
+
+  async function fetchAds() {
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res  = await fetch(`${SUPABASE_URL}/rest/v1/meta_ads_weekly?select=*&order=week_start.asc`, { headers });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function fetchAll() {
+    let all = [], from = 0;
+    const PAGE = 1000;
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    while (true) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/funnel?select=*&offset=${from}&limit=${PAGE}`, { headers });
+      const data = await res.json();
+      if (!Array.isArray(data)) { console.error('Supabase error:', data); break; }
+      all = all.concat(data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+    return all;
+  }
+
+  async function main() {
+    const [rows, adsRows] = await Promise.all([fetchAll(), fetchAds()]);
+    window._allRows = rows;
+    window._adsRows = adsRows;
+
+    // Update header badge with date range
+    if (rows.length) {
+      const dates = rows.map(r => r.inicio).filter(Boolean).sort();
+      const fmt = d => d ? d.slice(5).split('-').reverse().join('/') + '/' + d.slice(0,4) : '?';
+      const el = document.getElementById('header-periodo');
+      if (el) el.textContent = `${fmt(dates[0])} — ${fmt(dates[dates.length-1])}  ·  ${rows.length.toLocaleString()} candidatos`;
+
+      // "Last updated" — use synced_at timestamp if available, else periodo end date
+      const updEl = document.getElementById('header-updated');
+      if (updEl) {
+        const syncedVals = rows.map(r => r.synced_at).filter(Boolean).sort();
+        if (syncedVals.length) {
+          const d = new Date(syncedVals.at(-1));
+          const label = d.toLocaleString('es-MX', {
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+            timeZone: 'America/Mexico_City'
+          });
+          updEl.textContent = `Actualizado: ${label}`;
+        } else {
+          // fallback: use periodo end date (no time available yet)
+          const periodos = rows.map(r => r.periodo).filter(Boolean);
+          const lastPeriodo = periodos.sort().at(-1) || '';
+          const endDateStr  = lastPeriodo.split('_').at(-1) || '';
+          if (endDateStr) {
+            const d = new Date(endDateStr + 'T12:00:00');
+            const label = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+            updEl.textContent = `Actualizado: ${label}`;
+          } else {
+            updEl.textContent = '';
+          }
+        }
+      }
+    }
+
+    updateKPIs(rows);
+    renderFunnel(rows);
+    renderCharts(rows);
+  }
+
+  main();
+</script>
+</body>
+</html>
