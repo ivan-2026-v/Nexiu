@@ -1418,6 +1418,7 @@
     if (['No aprobado','Se retiró','Declinó oferta'].includes(r.estado_entrevista)) return false;
     if (r.suma_bg === 'No aprobado')  return false;
     if (r.prueba_manejo === 'No aprobado') return false;
+    if (r.prueba_manejo === 'Declinó proceso') return false;
     if (r.declina_oferta && r.declina_oferta !== 'No') return false;
     return true;
   }
