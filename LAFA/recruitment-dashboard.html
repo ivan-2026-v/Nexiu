@@ -297,7 +297,6 @@
   <button class="tab-btn" onclick="switchTab('marketing',this)">Marketing</button>
   <button class="tab-btn" onclick="switchTab('detalle',this)">Detalle Asistencia</button>
   <button class="tab-btn" onclick="switchTab('pipeline',this)">Pipeline Activo</button>
-  <button class="tab-btn" onclick="switchTab('backup',this)">Backup</button>
 </div>
 
 <div id="tab-executive" class="tab-content active">
@@ -468,9 +467,6 @@
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- TAB: BACKUP                                                        -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div id="tab-backup" class="tab-content">
-
-</div><!-- /tab-backup -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- TAB: DETALLE ASISTENCIA                                            -->
@@ -1212,8 +1208,7 @@
     btn.classList.add('active');
     if (name === 'detalle'  && window._allRows) renderDetalleAsistencia(window._allRows);
     if (name === 'pipeline' && window._allRows) renderPipeline(window._allRows);
-    if (name === 'backup'   && window._allRows) renderBackup(window._allRows);
-    if (name === 'marketing' && window._allRows && window._adsRows) renderMarketing(window._allRows, window._adsRows);
+if (name === 'marketing' && window._allRows && window._adsRows) renderMarketing(window._allRows, window._adsRows);
   }
 
   // ── PIPELINE ACTIVO ──────────────────────────────────────────────────
