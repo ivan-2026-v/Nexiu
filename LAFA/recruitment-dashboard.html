@@ -1266,10 +1266,10 @@ if (name === 'marketing' && window._allRows && window._adsRows) renderMarketing(
     if (r.firma_contrato)             return false;
     if (['No aprobado','Se retiró','Declinó oferta'].includes(r.estado_entrevista)) return false;
     if (r.suma_bg === 'No aprobado')  return false;
-    if (r.prueba_manejo === 'No aprobado') return false;
-    if (r.prueba_manejo === 'Declinó proceso') return false;
+    if (['No aprobado','Declinó proceso','Declina prueba de manejo'].includes(r.prueba_manejo)) return false;
     if (r.entrevista_estandarizada === 'Abandonado') return false;
     if (r.declina_oferta && r.declina_oferta !== 'No') return false;
+    if (r.docs_y_didi === 'Declina onboarding') return false;
     return true;
   }
 
