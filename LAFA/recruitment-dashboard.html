@@ -873,9 +873,9 @@
     if (!chart) return;
 
     const d = store[mode];
-    // Update labels
-    chart.data.labels = d.labels;
-    // Update each dataset's data
+    // Mutate labels in-place so Chart.js handles length changes correctly
+    chart.data.labels.splice(0, chart.data.labels.length, ...d.labels);
+    // Update each dataset's data in-place
     d.datasets.forEach((vals, i) => {
       if (chart.data.datasets[i]) chart.data.datasets[i].data = vals;
     });
@@ -1289,7 +1289,7 @@
     };
     _chartStore['conversionMonthChart'] = {
       cohort: { labels, datasets: [months.map(m=>{const {total:t,presentes:p}=mMap[m];return +pct1(p,t||1);}), months.map(m=>{const {total:t,aprobEnt}=mMap[m];return +pct1(aprobEnt,t||1);}), months.map(m=>{const {total:t,aprobPM}=mMap[m];return +pct1(aprobPM,t||1);}), months.map(m=>{const {total:t,contrat}=mMap[m];return +pct1(contrat,t||1);})] },
-      actual: { labels, datasets: [months.map(m=>{const {total:t,presentes:p}=mMap[m];return +pct1(p,t||1);}), months.map(m=>{const {total:t,aprobEnt}=mMap[m];return +pct1(aprobEnt,t||1);}), months.map(m=>{const {total:t,aprobPM}=mMap[m];return +pct1(aprobPM,t||1);}), months.map(m=>{const {total:t,contrat}=mMap[m];return +pct1(contrat,t||1);})] }
+      actual: { labels, datasets: [months.map(m=>{const {total:t,presentes:p}=mMap[m];return +pct1(p,t||1);}), months.map(m=>{const {total:t,aprobEnt}=mMap[m];return +pct1(aprobEnt,t||1);}), months.map(m=>{const {total:t,aprobPM}=mMap[m];return +pct1(aprobPM,t||1);}), months.map(m=>{const {total:t}=mMap[m];return +pct1(firmaMap[m]||0,t||1);})] }
     };
 
     makeChart('contratacionesMonthChart', {
@@ -1313,16 +1313,16 @@
       }
     });
 
-    // 8. Conversion rates line chart — always divide by actual total (never projected)
-    const convMonth = months.map(m => {
-      const {total:t, presentes:p, aprobEnt, aprobPM, contrat} = mMap[m];
-      return { llego:+pct1(p,t||1), ent:+pct1(aprobEnt,t||1), pm:+pct1(aprobPM,t||1), cont:+pct1(contrat,t||1) };
+    // 8. Conversion rates line chart — default is Actual (contratado by firma_contrato month)
+    const convMonthActual = months.map(m => {
+      const {total:t, presentes:p, aprobEnt, aprobPM} = mMap[m];
+      return { llego:+pct1(p,t||1), ent:+pct1(aprobEnt,t||1), pm:+pct1(aprobPM,t||1), cont:+pct1(firmaMap[m]||0,t||1) };
     });
     makeChart('conversionMonthChart', { type:'line', data:{ labels, datasets:[
-      { label:'Llegó a entrevista',   data:convMonth.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
-      { label:'Aprobó entrevista',    data:convMonth.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
-      { label:'Aprobó prueba manejo', data:convMonth.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
-      { label:'Contratado',           data:convMonth.map(d=>d.cont),  borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
+      { label:'Llegó a entrevista',   data:convMonthActual.map(d=>d.llego), borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false },
+      { label:'Aprobó entrevista',    data:convMonthActual.map(d=>d.ent),   borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
+      { label:'Aprobó prueba manejo', data:convMonthActual.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+      { label:'Contratado',           data:convMonthActual.map(d=>d.cont),  borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
     ]}, options:{
       layout:{padding:{top:20}},
       plugins:{
