@@ -127,6 +127,38 @@
       text-transform: uppercase;
       letter-spacing: 0.06em;
       margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card-title span.title-text { flex: 1; }
+    .chart-mode-toggle {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .chart-mode-toggle button {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 0.15s, color 0.15s;
+    }
+    .chart-mode-toggle button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .chart-mode-toggle button:hover:not(.active) {
+      background: var(--border);
+      color: #fff;
     }
     .chart-wrap {
       position: relative;
@@ -372,13 +404,13 @@
     <div class="funnel" id="funnelChart"></div>
   </div>
   <div class="card">
-    <div class="card-title">2. Tasas de conversión sobre citados · por semana</div>
+    <div class="card-title"><span class="title-text">2. Tasas de conversión sobre citados · por semana</span><div class="chart-mode-toggle" id="toggle-conversionChart"><button onclick="switchMode('conversionChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap">
       <canvas id="conversionChart" height="280"></canvas>
     </div>
   </div>
   <div class="card">
-    <div class="card-title">3. Tasas de conversión sobre presentes · por semana</div>
+    <div class="card-title"><span class="title-text">3. Tasas de conversión sobre presentes · por semana</span><div class="chart-mode-toggle" id="toggle-conversionPresChart"><button onclick="switchMode('conversionPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionPresChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap">
       <canvas id="conversionPresChart" height="280"></canvas>
     </div>
@@ -387,7 +419,7 @@
 
 <div style="margin-bottom:16px">
   <div class="card">
-    <div class="card-title">4. Candidatos por semana</div>
+    <div class="card-title"><span class="title-text">4. Candidatos por semana</span><div class="chart-mode-toggle" id="toggle-weeklyChart"><button onclick="switchMode('weeklyChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weeklyChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px">
       <canvas id="weeklyChart"></canvas>
     </div>
@@ -397,19 +429,19 @@
 <!-- 5–8 MÉTRICAS SEMANALES -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">5. Asistentes por semana</div>
+    <div class="card-title"><span class="title-text">5. Asistentes por semana</span><div class="chart-mode-toggle" id="toggle-weekPresChart"><button onclick="switchMode('weekPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weekPresChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekPresChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">6. Entrevistas aprobadas por semana</div>
+    <div class="card-title"><span class="title-text">6. Entrevistas aprobadas por semana</span><div class="chart-mode-toggle" id="toggle-weekEntChart"><button onclick="switchMode('weekEntChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weekEntChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekEntChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">7. Pruebas de manejo aprobadas por semana</div>
+    <div class="card-title"><span class="title-text">7. Pruebas de manejo aprobadas por semana</span><div class="chart-mode-toggle" id="toggle-weekPMChart"><button onclick="switchMode('weekPMChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weekPMChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekPMChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">8. Contrataciones por semana</div>
+    <div class="card-title"><span class="title-text">8. Contrataciones por semana</span><div class="chart-mode-toggle" id="toggle-contratacionesChart"><button onclick="switchMode('contratacionesChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('contratacionesChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="contratacionesChart"></canvas></div>
   </div>
 </div>
@@ -420,30 +452,30 @@
 
 <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">9. Tasas de conversión por mes</div>
+    <div class="card-title"><span class="title-text">9. Tasas de conversión por mes</span><div class="chart-mode-toggle" id="toggle-conversionMonthChart"><button onclick="switchMode('conversionMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionMonthChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap"><canvas id="conversionMonthChart" height="280"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">10. Candidatos captados por mes</div>
+    <div class="card-title"><span class="title-text">10. Candidatos captados por mes</span><div class="chart-mode-toggle" id="toggle-weeklyMonthChart"><button onclick="switchMode('weeklyMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weeklyMonthChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap"><canvas id="weeklyMonthChart" height="280"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">14. Contrataciones por mes, según firma de contrato</div>
+    <div class="card-title"><span class="title-text">14. Contrataciones por mes</span><div class="chart-mode-toggle" id="toggle-contratacionesMonthChart"><button onclick="switchMode('contratacionesMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('contratacionesMonthChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap"><canvas id="contratacionesMonthChart" height="280"></canvas></div>
   </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
   <div class="card">
-    <div class="card-title">11. Asistentes por mes</div>
+    <div class="card-title"><span class="title-text">11. Asistentes por mes</span><div class="chart-mode-toggle" id="toggle-monthPresChart"><button onclick="switchMode('monthPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPresChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPresChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">12. Entrevistas aprobadas por mes</div>
+    <div class="card-title"><span class="title-text">12. Entrevistas aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthEntChart"><button onclick="switchMode('monthEntChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthEntChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthEntChart"></canvas></div>
   </div>
   <div class="card">
-    <div class="card-title">13. Pruebas de manejo aprobadas por mes</div>
+    <div class="card-title"><span class="title-text">13. Pruebas de manejo aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthPMChart"><button onclick="switchMode('monthPMChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPMChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPMChart"></canvas></div>
   </div>
 </div>
@@ -826,11 +858,36 @@
     chartInstances[id] = new Chart(document.getElementById(id), config);
   }
 
+  // Store for cohort/actual datasets — keyed by chartId
+  const _chartStore = {};
+
+  function switchMode(chartId, btn, mode) {
+    // Update button active state
+    const toggle = btn.closest('.chart-mode-toggle');
+    toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const store = _chartStore[chartId];
+    if (!store || !store[mode]) return;
+    const chart = chartInstances[chartId];
+    if (!chart) return;
+
+    const d = store[mode];
+    // Update labels
+    chart.data.labels = d.labels;
+    // Update each dataset's data
+    d.datasets.forEach((vals, i) => {
+      if (chart.data.datasets[i]) chart.data.datasets[i].data = vals;
+    });
+    chart.update();
+  }
+
   function renderCharts(rows) {
     const presentes   = rows.filter(r => r.asistencia === 'Realizada');
     const llego       = presentes.length;
 
     // ── WEEKLY ──────────────────────────────────────────────────────
+    // Cohort: ALL metrics keyed by isoWeek(inicio)
     const weekOrder = {};
     rows.forEach(r => {
       const w = isoWeek(r.inicio);
@@ -844,10 +901,45 @@
       if (pmAprobado(r.prueba_manejo))  wk.aprobPM++;
       if (r.firma_contrato)                wk.contrat++;
     });
+
+    // Actual: asistentes keyed by hora_llegada||inicio; contrataciones by firma_contrato
+    const actualPresMap = {};
+    rows.filter(r => r.asistencia === 'Realizada').forEach(r => {
+      const w = isoWeek(r.hora_llegada || r.inicio);
+      if (w) actualPresMap[w] = (actualPresMap[w] || 0) + 1;
+    });
+
+    const allWeeks = [...new Set([
+      ...Object.keys(weekOrder).map(Number),
+      ...Object.keys(actualPresMap).map(Number)
+    ])].sort((a,b)=>a-b);
+
     const sortedWeeks = Object.keys(weekOrder).map(Number).sort((a,b)=>a-b);
     const weekLabels = sortedWeeks.map(w => `S${w}`);
     const weekTotal  = sortedWeeks.map(w => weekOrder[w].total);
     const weekPres   = sortedWeeks.map(w => weekOrder[w].presentes);
+
+    // Populate _chartStore for charts that differ between modes
+    // weeklyChart: cohort=actual (inicio is the natural date)
+    _chartStore['weeklyChart'] = {
+      cohort: { labels: weekLabels, datasets: [weekTotal] },
+      actual: { labels: weekLabels, datasets: [weekTotal] }
+    };
+    // weekPresChart: cohort=by inicio, actual=by hora_llegada
+    const actualPresWeeks = [...new Set([...sortedWeeks, ...Object.keys(actualPresMap).map(Number)])].sort((a,b)=>a-b);
+    _chartStore['weekPresChart'] = {
+      cohort: { labels: weekLabels, datasets: [weekPres] },
+      actual: { labels: actualPresWeeks.map(w=>`S${w}`), datasets: [actualPresWeeks.map(w => actualPresMap[w] || 0)] }
+    };
+    // weekEntChart, weekPMChart: cohort=actual (no separate result date)
+    _chartStore['weekEntChart'] = {
+      cohort: { labels: weekLabels, datasets: [sortedWeeks.map(w=>weekOrder[w].aprobEnt)] },
+      actual: { labels: weekLabels, datasets: [sortedWeeks.map(w=>weekOrder[w].aprobEnt)] }
+    };
+    _chartStore['weekPMChart'] = {
+      cohort: { labels: weekLabels, datasets: [sortedWeeks.map(w=>weekOrder[w].aprobPM)] },
+      actual: { labels: weekLabels, datasets: [sortedWeeks.map(w=>weekOrder[w].aprobPM)] }
+    };
 
     makeChart('weeklyChart', {
       type: 'bar',
@@ -879,11 +971,18 @@
       options: weekMetricOpts()
     });
 
+    // conversionChart and conversionPresChart: same data in both modes
+    // (mixing dates per series in a multi-line chart would be misleading)
+
     // ── CONVERSION BY WEEK ───────────────────────────────────────────
     const convData = sortedWeeks.map(w => {
       const { total: t, presentes: p, aprobEnt, aprobPM, contrat } = weekOrder[w];
       return { llego: +pct1(p,t), ent: +pct1(aprobEnt,t), pm: +pct1(aprobPM,t), cont: +pct1(contrat,t) };
     });
+    _chartStore['conversionChart'] = {
+      cohort: { labels: weekLabels, datasets: [convData.map(d=>d.llego), convData.map(d=>d.ent), convData.map(d=>d.pm), convData.map(d=>d.cont)] },
+      actual: { labels: weekLabels, datasets: [convData.map(d=>d.llego), convData.map(d=>d.ent), convData.map(d=>d.pm), convData.map(d=>d.cont)] }
+    };
     makeChart('conversionChart', {
       type: 'line',
       data: { labels: weekLabels, datasets: [
@@ -907,6 +1006,10 @@
         cont:     +pct1(contrat,   base),
       };
     });
+    _chartStore['conversionPresChart'] = {
+      cohort: { labels: weekLabels, datasets: [convPresData.map(d=>d.ent), convPresData.map(d=>d.llegoPM), convPresData.map(d=>d.pm), convPresData.map(d=>d.cont)] },
+      actual: { labels: weekLabels, datasets: [convPresData.map(d=>d.ent), convPresData.map(d=>d.llegoPM), convPresData.map(d=>d.pm), convPresData.map(d=>d.cont)] }
+    };
     makeChart('conversionPresChart', {
       type: 'line',
       data: { labels: weekLabels, datasets: [
@@ -926,6 +1029,14 @@
     });
     const firmaWeeks = Object.keys(firmaWeekMap).map(Number).sort((a,b)=>a-b);
     const firmaVals  = firmaWeeks.map(w => firmaWeekMap[w]);
+
+    // Cohort: contratados agrupados por semana de inicio
+    const cohortContratWeeks = sortedWeeks.filter(w => weekOrder[w].contrat > 0);
+    _chartStore['contratacionesChart'] = {
+      cohort: { labels: sortedWeeks.map(w=>`S${w}`), datasets: [sortedWeeks.map(w=>weekOrder[w].contrat)] },
+      actual: { labels: firmaWeeks.map(w=>`S${w}`),  datasets: [firmaVals] }
+    };
+
     makeChart('contratacionesChart', {
       type: 'bar',
       data: { labels: firmaWeeks.map(w=>`S${w}`), datasets:[{
@@ -1130,6 +1241,32 @@
       };
     };
 
+    // Build actual-mode asistentes by hora_llegada month
+    const actualPresMonthMap = {};
+    rows.filter(r => r.asistencia === 'Realizada').forEach(r => {
+      const m = ((r.hora_llegada || r.inicio)||'').slice(0,7);
+      if (m) actualPresMonthMap[m] = (actualPresMonthMap[m]||0) + 1;
+    });
+    const actualPresMonths = [...new Set([...months, ...Object.keys(actualPresMonthMap)])].sort();
+
+    // Populate _chartStore for monthly charts
+    _chartStore['weeklyMonthChart'] = {
+      cohort: { labels, datasets: [months.map(m=>mMap[m].total), months.map(m=>extra(months.map(m2=>mMap[m2].total))[months.indexOf(m)])] },
+      actual: { labels, datasets: [months.map(m=>mMap[m].total), months.map(m=>extra(months.map(m2=>mMap[m2].total))[months.indexOf(m)])] }
+    };
+    _chartStore['monthPresChart'] = {
+      cohort: { labels, datasets: [months.map(m=>mMap[m].presentes), months.map((_,i)=>extra(months.map(m=>mMap[m].presentes))[i])] },
+      actual: { labels: actualPresMonths.map(monthName), datasets: [actualPresMonths.map(m=>actualPresMonthMap[m]||0), actualPresMonths.map(()=>0)] }
+    };
+    _chartStore['monthEntChart'] = {
+      cohort: { labels, datasets: [months.map(m=>mMap[m].aprobEnt), months.map((_,i)=>extra(months.map(m=>mMap[m].aprobEnt))[i])] },
+      actual: { labels, datasets: [months.map(m=>mMap[m].aprobEnt), months.map((_,i)=>extra(months.map(m=>mMap[m].aprobEnt))[i])] }
+    };
+    _chartStore['monthPMChart'] = {
+      cohort: { labels, datasets: [months.map(m=>mMap[m].aprobPM), months.map((_,i)=>extra(months.map(m=>mMap[m].aprobPM))[i])] },
+      actual: { labels, datasets: [months.map(m=>mMap[m].aprobPM), months.map((_,i)=>extra(months.map(m=>mMap[m].aprobPM))[i])] }
+    };
+
     makeChart('weeklyMonthChart', stackedBar(months.map(m=>mMap[m].total),     COLORS.indigo));
     makeChart('monthPresChart',   stackedBar(months.map(m=>mMap[m].presentes), COLORS.cyan,   false));
     makeChart('monthEntChart',    stackedBar(months.map(m=>mMap[m].aprobEnt),  COLORS.green,  false));
@@ -1143,6 +1280,18 @@
       m === curMonthStr ? Math.max(0, Math.round(firmaActual[i] * projFactor) - firmaActual[i]) : 0
     );
     const firmaPrev   = firmaActual.map((v, i) => i > 0 ? firmaActual[i-1] : null);
+
+    // cohort: contratados agrupados por mes de inicio
+    const cohortContratVals = months.map(m => mMap[m].contrat);
+    _chartStore['contratacionesMonthChart'] = {
+      cohort: { labels, datasets: [cohortContratVals, months.map(()=>0)] },
+      actual: { labels: firmaLabels, datasets: [firmaActual, firmaExtra] }
+    };
+    _chartStore['conversionMonthChart'] = {
+      cohort: { labels, datasets: [months.map(m=>{const {total:t,presentes:p}=mMap[m];return +pct1(p,t||1);}), months.map(m=>{const {total:t,aprobEnt}=mMap[m];return +pct1(aprobEnt,t||1);}), months.map(m=>{const {total:t,aprobPM}=mMap[m];return +pct1(aprobPM,t||1);}), months.map(m=>{const {total:t,contrat}=mMap[m];return +pct1(contrat,t||1);})] },
+      actual: { labels, datasets: [months.map(m=>{const {total:t,presentes:p}=mMap[m];return +pct1(p,t||1);}), months.map(m=>{const {total:t,aprobEnt}=mMap[m];return +pct1(aprobEnt,t||1);}), months.map(m=>{const {total:t,aprobPM}=mMap[m];return +pct1(aprobPM,t||1);}), months.map(m=>{const {total:t,contrat}=mMap[m];return +pct1(contrat,t||1);})] }
+    };
+
     makeChart('contratacionesMonthChart', {
       type: 'bar',
       data: { labels: firmaLabels, datasets: [
