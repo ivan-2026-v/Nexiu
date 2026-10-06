@@ -551,9 +551,9 @@
 
   <!-- WTD COMPARISON CHART -->
   <div class="card grid-1" style="margin-bottom:16px">
-    <div class="card-title">Asistencia acumulada week-to-date vs semanas previas</div>
+    <div class="card-title">1. Asistencia acumulada week-to-date</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
-      Cada línea muestra la asistencia acumulada de lunes al día actual. La semana actual se resalta en cian.
+      Cada barra muestra la asistencia acumulada de lunes al día actual. La semana actual se resalta en cian.
     </div>
     <div class="chart-wrap">
       <canvas id="wtdChart" height="90"></canvas>
@@ -563,7 +563,7 @@
   <!-- DAY-BY-DAY TABLE + DAY COMPARISON (side by side) -->
   <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px">
     <div class="card">
-      <div class="card-title">Asistencia diaria por semana</div>
+      <div class="card-title">2. Asistencia diaria por semana</div>
       <div id="weekly-day-table"></div>
     </div>
     <div class="card">
@@ -1798,44 +1798,97 @@
 
     // ── WEEK TABLE — always Mon → Fri ──
     const tableEl = document.getElementById('weekly-day-table');
-    let html = '';
+    const currentMonth = todayStr.slice(0, 7); // YYYY-MM
+
+    // Group weeks by their Monday's month
+    const monthGroups = {};
     allWeeks.forEach(w => {
-      const wDates = weekDatesMonFri(w);
-      let wPres = 0, wSched = 0;
-      for (const d of wDates) {
-        if (d) {
-          if (presentesByDay[d]) wPres += presentesByDay[d].presentes;
-          wSched += scheduledByDay[d] || 0;
-        }
+      const mon = weekDatesMonFri(w)[0];
+      const mo  = mon ? mon.slice(0, 7) : null;
+      if (!mo) return;
+      if (!monthGroups[mo]) monthGroups[mo] = [];
+      monthGroups[mo].push(w);
+    });
+    const sortedMonths = Object.keys(monthGroups).sort();
+
+    const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    function fmtMonth(ym) {
+      const [y, m] = ym.split('-');
+      return `${MONTH_NAMES[+m-1]} ${y}`;
+    }
+
+    let html = '';
+    sortedMonths.forEach(mo => {
+      const weeks = monthGroups[mo];
+      const isCurrMonth = mo === currentMonth;
+
+      if (isCurrMonth) {
+        // Current month: full week-by-week detail
+        html += `<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:12px;margin-top:4px">${fmtMonth(mo)} — detalle semanal</div>`;
+        weeks.forEach(w => {
+          const wDates = weekDatesMonFri(w);
+          let wPres = 0, wSched = 0;
+          for (const d of wDates) {
+            if (d) {
+              if (presentesByDay[d]) wPres += presentesByDay[d].presentes;
+              wSched += scheduledByDay[d] || 0;
+            }
+          }
+          const wRate = wSched ? Math.round(wPres / wSched * 100) : 0;
+          html += `<div style="margin-bottom:20px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent2);margin-bottom:8px">
+              S${w} &nbsp;·&nbsp; ${wDates[0]?.slice(5).replace('-','/')} – ${wDates[4]?.slice(5).replace('-','/')}
+            </div>
+            <table class="week-table">
+              <thead><tr><th>Día</th><th>Fecha</th><th>Prog.</th><th>Pres.</th><th>No-show</th><th>Tasa</th></tr></thead>
+              <tbody>`;
+          wDates.forEach((d, i) => {
+            const pres  = (d && presentesByDay[d]) ? presentesByDay[d].presentes : 0;
+            const sched = d ? (scheduledByDay[d] || 0) : 0;
+            const rate  = sched ? Math.round(pres / sched * 100) : null;
+            const cls   = rate === null ? '' : rate >= 20 ? 'rate-good' : rate >= 10 ? 'rate-warn' : 'rate-bad';
+            html += `<tr>
+              <td>${DOW_SHORT[i]}</td>
+              <td>${d ? d.slice(5).replace('-','/') : '—'}</td>
+              <td style="color:var(--muted)">${sched || '—'}</td>
+              <td style="color:var(--accent2);font-weight:700">${pres || (rate !== null ? 0 : '—')}</td>
+              <td style="color:${sched-pres>0?'var(--danger)':'var(--muted)'}">${sched ? sched-pres : '—'}</td>
+              <td class="${cls}">${rate !== null ? rate+'%' : '—'}</td>
+            </tr>`;
+          });
+          html += `</tbody>
+              <tfoot><tr class="sum-row">
+                <td colspan="2">Total semana</td>
+                <td>${wSched}</td><td>${wPres}</td><td>${wSched-wPres}</td><td>${wRate}%</td>
+              </tr></tfoot>
+            </table></div>`;
+        });
+      } else {
+        // Closed month: single summary row
+        let moPres = 0, moSched = 0;
+        weeks.forEach(w => {
+          weekDatesMonFri(w).forEach(d => {
+            if (d) {
+              if (presentesByDay[d]) moPres += presentesByDay[d].presentes;
+              moSched += scheduledByDay[d] || 0;
+            }
+          });
+        });
+        const moRate = moSched ? Math.round(moPres / moSched * 100) : 0;
+        const rateCls = moRate >= 20 ? 'rate-good' : moRate >= 10 ? 'rate-warn' : 'rate-bad';
+        html += `<table class="week-table" style="margin-bottom:10px">
+          <tbody>
+            <tr class="sum-row">
+              <td style="color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">${fmtMonth(mo)}</td>
+              <td style="color:var(--muted)">${weeks.length} sem.</td>
+              <td>${moSched}</td>
+              <td style="color:var(--accent2)">${moPres}</td>
+              <td style="color:var(--danger)">${moSched - moPres}</td>
+              <td class="${rateCls}">${moRate}%</td>
+            </tr>
+          </tbody>
+        </table>`;
       }
-      const wRate = wSched ? Math.round(wPres / wSched * 100) : 0;
-      html += `<div style="margin-bottom:20px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent2);margin-bottom:8px">
-          S${w} &nbsp;·&nbsp; ${wDates[0]?.slice(5).replace('-','/')} – ${wDates[4]?.slice(5).replace('-','/')}
-        </div>
-        <table class="week-table">
-          <thead><tr><th>Día</th><th>Fecha</th><th>Prog.</th><th>Pres.</th><th>No-show</th><th>Tasa</th></tr></thead>
-          <tbody>`;
-      wDates.forEach((d, i) => {
-        const pres  = (d && presentesByDay[d]) ? presentesByDay[d].presentes : 0;
-        const sched = d ? (scheduledByDay[d] || 0) : 0;
-        const rate  = sched ? Math.round(pres / sched * 100) : null;
-        const cls   = rate === null ? '' : rate >= 20 ? 'rate-good' : rate >= 10 ? 'rate-warn' : 'rate-bad';
-        html += `<tr>
-          <td>${DOW_SHORT[i]}</td>
-          <td>${d ? d.slice(5).replace('-','/') : '—'}</td>
-          <td style="color:var(--muted)">${sched || '—'}</td>
-          <td style="color:var(--accent2);font-weight:700">${pres || (rate !== null ? 0 : '—')}</td>
-          <td style="color:${sched-pres>0?'var(--danger)':'var(--muted)'}">${sched ? sched-pres : '—'}</td>
-          <td class="${cls}">${rate !== null ? rate+'%' : '—'}</td>
-        </tr>`;
-      });
-      html += `</tbody>
-          <tfoot><tr class="sum-row">
-            <td colspan="2">Total semana</td>
-            <td>${wSched}</td><td>${wPres}</td><td>${wSched-wPres}</td><td>${wRate}%</td>
-          </tr></tfoot>
-        </table></div>`;
     });
     tableEl.innerHTML = html;
 
