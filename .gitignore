@@ -3,3 +3,5 @@ browser_session/
 .last_sync_date
 *.xlsx
 .DS_Store
+SESSION_CONTEXT.md
+Credenciales*
