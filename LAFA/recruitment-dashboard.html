@@ -646,11 +646,11 @@
       <div class="chart-wrap" style="height:240px"><canvas id="mktWeekSpendChart"></canvas></div>
     </div>
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title">M2. $ / invitado &amp; $ / presente — semanal</div>
+      <div class="card-title"><span class="title-text">M2. $ / invitado &amp; $ / presente — semanal</span><div class="chart-mode-toggle" id="toggle-mktWeekCostChart"><button onclick="switchMode('mktWeekCostChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('mktWeekCostChart',this,'actual')">Actual</button></div></div>
       <div class="chart-wrap" style="height:240px"><canvas id="mktWeekCostChart"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">M3. $ / entrevista aprobada &amp; $ / contratado — semanal</div>
+      <div class="card-title"><span class="title-text">M3. $ / entrevista aprobada &amp; $ / contratado — semanal</span><div class="chart-mode-toggle" id="toggle-mktWeekHiredChart"><button onclick="switchMode('mktWeekHiredChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('mktWeekHiredChart',this,'actual')">Actual</button></div></div>
       <div class="chart-wrap" style="height:240px"><canvas id="mktWeekHiredChart"></canvas></div>
     </div>
   </div>
@@ -663,11 +663,11 @@
       <div class="chart-wrap" style="height:240px"><canvas id="mktMonthSpendChart"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">M5. $ / invitado &amp; $ / presente — mensual</div>
+      <div class="card-title"><span class="title-text">M5. $ / invitado &amp; $ / presente — mensual</span><div class="chart-mode-toggle" id="toggle-mktMonthCostChart"><button onclick="switchMode('mktMonthCostChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('mktMonthCostChart',this,'actual')">Actual</button></div></div>
       <div class="chart-wrap" style="height:240px"><canvas id="mktMonthCostChart"></canvas></div>
     </div>
     <div class="card" style="grid-column:1/-1">
-      <div class="card-title">M6. $ / entrevista aprobada &amp; $ / contratado — mensual</div>
+      <div class="card-title"><span class="title-text">M6. $ / entrevista aprobada &amp; $ / contratado — mensual</span><div class="chart-mode-toggle" id="toggle-mktMonthHiredChart"><button onclick="switchMode('mktMonthHiredChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('mktMonthHiredChart',this,'actual')">Actual</button></div></div>
       <div class="chart-wrap" style="height:240px"><canvas id="mktMonthHiredChart"></canvas></div>
     </div>
   </div>
@@ -920,11 +920,27 @@
       if (r.firma_contrato)                wk.contrat++;
     });
 
-    // Actual: asistentes keyed by hora_llegada||inicio; contrataciones by firma_contrato
+    // Actual: asistentes keyed by hora_llegada||inicio; with full downstream tracking for chart 3
     const actualPresMap = {};
+    const actualPresOrder = {};  // for chart 3 actual mode
     rows.filter(r => r.asistencia === 'Realizada').forEach(r => {
       const w = isoWeek(r.hora_llegada || r.inicio);
-      if (w) actualPresMap[w] = (actualPresMap[w] || 0) + 1;
+      if (!w) return;
+      actualPresMap[w] = (actualPresMap[w] || 0) + 1;
+      if (!actualPresOrder[w]) actualPresOrder[w] = { presentes:0, aprobEnt:0, llegoPM:0, aprobPM:0, contrat:0 };
+      const wk = actualPresOrder[w];
+      wk.presentes++;
+      if (r.suma_bg === 'Aprobado') wk.aprobEnt++;
+      if (pmAprobado(r.prueba_manejo) || pmNoAprobado(r.prueba_manejo)) wk.llegoPM++;
+      if (pmAprobado(r.prueba_manejo)) wk.aprobPM++;
+      if (r.firma_contrato) wk.contrat++;
+    });
+    const actualPresWeeksSorted = Object.keys(actualPresOrder).map(Number).sort((a,b)=>a-b);
+    const actualPresLabels = actualPresWeeksSorted.map(w => `S${w}`);
+    const convPresActual = actualPresWeeksSorted.map(w => {
+      const { presentes: p, aprobEnt, llegoPM, aprobPM, contrat } = actualPresOrder[w];
+      const base = p || 1;
+      return { ent: +pct1(aprobEnt, base), llegoPM: +pct1(llegoPM, base), pm: +pct1(aprobPM, base), cont: +pct1(contrat, base) };
     });
 
     const allWeeks = [...new Set([
@@ -1024,17 +1040,19 @@
         cont:     +pct1(contrat,   base),
       };
     });
+    // Cohort: keyed by inicio week (what % of that cohort's attendees progressed)
+    // Actual: keyed by hora_llegada week (what % of attendees that week progressed)
     _chartStore['conversionPresChart'] = {
-      cohort: { labels: weekLabels, datasets: [convPresData.map(d=>d.ent), convPresData.map(d=>d.llegoPM), convPresData.map(d=>d.pm), convPresData.map(d=>d.cont)] },
-      actual: { labels: weekLabels, datasets: [convPresData.map(d=>d.ent), convPresData.map(d=>d.llegoPM), convPresData.map(d=>d.pm), convPresData.map(d=>d.cont)] }
+      cohort: { labels: weekLabels,        datasets: [convPresData.map(d=>d.ent), convPresData.map(d=>d.llegoPM), convPresData.map(d=>d.pm), convPresData.map(d=>d.cont)] },
+      actual: { labels: actualPresLabels,  datasets: [convPresActual.map(d=>d.ent), convPresActual.map(d=>d.llegoPM), convPresActual.map(d=>d.pm), convPresActual.map(d=>d.cont)] }
     };
     makeChart('conversionPresChart', {
       type: 'line',
-      data: { labels: weekLabels, datasets: [
-        { label:'Aprobó entrevista',         data: convPresData.map(d=>d.ent),     borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
-        { label:'Llegó a prueba de manejo',  data: convPresData.map(d=>d.llegoPM), borderColor:COLORS.orange, backgroundColor:COLORS.orange+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.orange, tension:0.3, fill:false },
-        { label:'Aprobó prueba de manejo',   data: convPresData.map(d=>d.pm),      borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
-        { label:'Contratado',                data: convPresData.map(d=>d.cont),    borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
+      data: { labels: actualPresLabels, datasets: [
+        { label:'Aprobó entrevista',         data: convPresActual.map(d=>d.ent),     borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false },
+        { label:'Llegó a prueba de manejo',  data: convPresActual.map(d=>d.llegoPM), borderColor:COLORS.orange, backgroundColor:COLORS.orange+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.orange, tension:0.3, fill:false },
+        { label:'Aprobó prueba de manejo',   data: convPresActual.map(d=>d.pm),      borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
+        { label:'Contratado',                data: convPresActual.map(d=>d.cont),    borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
       ]},
       options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0,max:100} }, responsive:true, maintainAspectRatio:false }
     });
@@ -2041,6 +2059,28 @@
       if (r.firma_contrato)                moFunnel[m].contratados++;
     });
 
+    // Actual: events keyed by date the event occurred
+    const wkActPresMap = {}, wkActEntMap = {}, wkActContratMap = {};
+    const moActPresMap = {}, moActEntMap = {}, moActContratMap = {};
+    rows.forEach(r => {
+      if (r.asistencia === 'Realizada') {
+        const aw = isoWeek(r.hora_llegada || r.inicio);
+        const am = (r.hora_llegada || r.inicio || '').slice(0, 7);
+        if (aw) wkActPresMap[aw] = (wkActPresMap[aw]||0) + 1;
+        if (am) moActPresMap[am] = (moActPresMap[am]||0) + 1;
+        if (r.suma_bg === 'Aprobado') {
+          if (aw) wkActEntMap[aw] = (wkActEntMap[aw]||0) + 1;
+          if (am) moActEntMap[am] = (moActEntMap[am]||0) + 1;
+        }
+      }
+      if (r.firma_contrato) {
+        const cw = isoWeek(r.firma_contrato);
+        const cm = r.firma_contrato.slice(0, 7);
+        if (cw) wkActContratMap[cw] = (wkActContratMap[cw]||0) + 1;
+        if (cm) moActContratMap[cm] = (moActContratMap[cm]||0) + 1;
+      }
+    });
+
     // Shared weeks (have ads data), sorted
     const adsSortedWeeks = Object.keys(wkAds).map(Number).sort((a,b)=>a-b).filter(w => w >= 15);
     const wkLabels = adsSortedWeeks.map(w => `S${w}`);
@@ -2049,10 +2089,15 @@
     // $/candidato metrics per week (null if no funnel data)
     const safe  = (spend, n) => n > 0 ? Math.round(spend / n) : null;
     const safe2 = (spend, n) => n > 0 ? Math.round(spend / n * 100) / 100 : null;  // 2 decimals
+    // Cohort: denominator keyed by inicio week
     const wkPerInvited   = adsSortedWeeks.map(w => safe2(wkAds[w], wkFunnel[w]?.total));
     const wkPerPresente  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.presentes));
     const wkPerAprobEnt  = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.aprobEnt));
     const wkPerHired     = adsSortedWeeks.map(w => safe(wkAds[w], wkFunnel[w]?.contratados));
+    // Actual: denominator keyed by event date (hora_llegada for presentes/ent, firma_contrato for contratados)
+    const wkActPerPresente = adsSortedWeeks.map(w => safe(wkAds[w], wkActPresMap[w]));
+    const wkActPerAprobEnt = adsSortedWeeks.map(w => safe(wkAds[w], wkActEntMap[w]));
+    const wkActPerHired    = adsSortedWeeks.map(w => safe(wkAds[w], wkActContratMap[w]));
 
     // ── M1: Weekly spend ─────────────────────────────────────────────
     makeChart('mktWeekSpendChart', {
@@ -2112,16 +2157,24 @@
     });
 
     // ── M2: Weekly $/invitado & $/presente ──────────────────────────
+    _chartStore['mktWeekCostChart'] = {
+      cohort: { labels: wkLabels, datasets: [wkPerInvited, wkPerPresente] },
+      actual: { labels: wkLabels, datasets: [wkPerInvited, wkActPerPresente] }
+    };
     const m2ds = [
-      { label:'$ / invitado',  data: wkPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
-      { label:'$ / presente', data: wkPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / invitado',  data: wkPerInvited,      borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / presente',  data: wkActPerPresente,  borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
     ];
     makeChart('mktWeekCostChart', { type:'line', data:{ labels:wkLabels, datasets:m2ds }, plugins:[makeLineLabels(m2ds, [fmtUSD2, fmtUSD])], options:lineChartOpts() });
 
     // ── M3: Weekly $/ent.aprobada & $/contratado ────────────────────
+    _chartStore['mktWeekHiredChart'] = {
+      cohort: { labels: wkLabels, datasets: [wkPerAprobEnt, wkPerHired] },
+      actual: { labels: wkLabels, datasets: [wkActPerAprobEnt, wkActPerHired] }
+    };
     const m3ds = [
-      { label:'$ / ent. aprobada', data: wkPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
-      { label:'$ / contratado',    data: wkPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / ent. aprobada', data: wkActPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / contratado',    data: wkActPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:4, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
     ];
     makeChart('mktWeekHiredChart', { type:'line', data:{ labels:wkLabels, datasets:m3ds }, plugins:[makeLineLabels(m3ds)], options:lineChartOpts() });
 
@@ -2189,23 +2242,36 @@
       }
     });
 
-    // ── M4: Monthly $/candidato (actual rates, no projection needed) ──
+    // ── M4: Monthly $/candidato ──────────────────────────────────────
+    // Cohort: denominator keyed by inicio month
     const moPerInvited  = allMonths.map(m => safe2(moAds[m]||0, moFunnel[m]?.total));
     const moPerPresente = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.presentes));
     const moPerAprobEnt = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.aprobEnt));
     const moPerHired    = allMonths.map(m => safe(moAds[m]||0, moFunnel[m]?.contratados));
+    // Actual: denominator keyed by event date
+    const moActPerPresente = allMonths.map(m => safe(moAds[m]||0, moActPresMap[m]));
+    const moActPerAprobEnt = allMonths.map(m => safe(moAds[m]||0, moActEntMap[m]));
+    const moActPerHired    = allMonths.map(m => safe(moAds[m]||0, moActContratMap[m]));
 
     // ── M5: Monthly $/invitado & $/presente ─────────────────────────
+    _chartStore['mktMonthCostChart'] = {
+      cohort: { labels: moLabels, datasets: [moPerInvited, moPerPresente] },
+      actual: { labels: moLabels, datasets: [moPerInvited, moActPerPresente] }
+    };
     const m5ds = [
-      { label:'$ / invitado',  data: moPerInvited,  borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
-      { label:'$ / presente', data: moPerPresente, borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / invitado',  data: moPerInvited,      borderColor:COLORS.cyan,   backgroundColor:COLORS.cyan+'18',   borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.cyan,   tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / presente',  data: moActPerPresente,  borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false, spanGaps:true },
     ];
     makeChart('mktMonthCostChart', { type:'line', data:{ labels:moLabels, datasets:m5ds }, plugins:[makeLineLabels(m5ds, [fmtUSD2, fmtUSD])], options:lineChartOpts() });
 
     // ── M6: Monthly $/ent.aprobada & $/contratado ────────────────────
+    _chartStore['mktMonthHiredChart'] = {
+      cohort: { labels: moLabels, datasets: [moPerAprobEnt, moPerHired] },
+      actual: { labels: moLabels, datasets: [moActPerAprobEnt, moActPerHired] }
+    };
     const m6ds = [
-      { label:'$ / ent. aprobada', data: moPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
-      { label:'$ / contratado',    data: moPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / ent. aprobada', data: moActPerAprobEnt, borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false, spanGaps:true },
+      { label:'$ / contratado',    data: moActPerHired,    borderColor:COLORS.green,  backgroundColor:COLORS.green+'18',  borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.green,  tension:0.3, fill:false, spanGaps:true },
     ];
     makeChart('mktMonthHiredChart', { type:'line', data:{ labels:moLabels, datasets:m6ds }, plugins:[makeLineLabels(m6ds)], options:lineChartOpts() });
   }
