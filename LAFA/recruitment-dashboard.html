@@ -385,7 +385,7 @@
 </div>
 
 <!-- FUNNEL + TASAS + WEEKLY -->
-<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+<div style="margin-bottom:16px">
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div class="card-title" style="margin:0">1. Funnel de Reclutamiento</div>
@@ -403,16 +403,20 @@
     </div>
     <div class="funnel" id="funnelChart"></div>
   </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">2. Tasas de conversión sobre citados · por semana</span><div class="chart-mode-toggle" id="toggle-conversionChart"><button onclick="switchMode('conversionChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap">
-      <canvas id="conversionChart" height="280"></canvas>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="conversionChart"></canvas>
     </div>
   </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">3. Tasas de conversión sobre presentes · por semana</span><div class="chart-mode-toggle" id="toggle-conversionPresChart"><button onclick="switchMode('conversionPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionPresChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap">
-      <canvas id="conversionPresChart" height="280"></canvas>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="conversionPresChart"></canvas>
     </div>
   </div>
 </div>
@@ -427,19 +431,25 @@
 </div>
 
 <!-- 5–8 MÉTRICAS SEMANALES -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">5. Asistentes por semana</span><div class="chart-mode-toggle" id="toggle-weekPresChart"><button onclick="switchMode('weekPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weekPresChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekPresChart"></canvas></div>
   </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">6. Entrevistas aprobadas por semana</span><div class="chart-mode-toggle" id="toggle-weekEntChart"><button onclick="switchMode('weekEntChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weekEntChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekEntChart"></canvas></div>
   </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">7. Pruebas de manejo aprobadas por semana</span><div class="chart-mode-toggle" id="toggle-weekPMChart"><button onclick="switchMode('weekPMChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weekPMChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="weekPMChart"></canvas></div>
   </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">8. Contrataciones por semana</span><div class="chart-mode-toggle" id="toggle-contratacionesChart"><button onclick="switchMode('contratacionesChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('contratacionesChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="contratacionesChart"></canvas></div>
@@ -450,33 +460,40 @@
 <hr class="section-sep" />
 <div class="section-label">Visión mensual &nbsp;·&nbsp; <span id="monthly-proj-note" style="color:var(--accent);text-transform:none;letter-spacing:0;font-size:11px"></span></div>
 
-<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">9. Tasas de conversión por mes</span><div class="chart-mode-toggle" id="toggle-conversionMonthChart"><button onclick="switchMode('conversionMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionMonthChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap"><canvas id="conversionMonthChart" height="280"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title"><span class="title-text">10. Candidatos captados por mes</span><div class="chart-mode-toggle" id="toggle-weeklyMonthChart"><button onclick="switchMode('weeklyMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weeklyMonthChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap"><canvas id="weeklyMonthChart" height="280"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title"><span class="title-text">14. Contrataciones por mes</span><div class="chart-mode-toggle" id="toggle-contratacionesMonthChart"><button onclick="switchMode('contratacionesMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('contratacionesMonthChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap"><canvas id="contratacionesMonthChart" height="280"></canvas></div>
+    <div class="chart-wrap" style="height:240px"><canvas id="conversionMonthChart"></canvas></div>
   </div>
 </div>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+<div style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title"><span class="title-text">10. Candidatos captados por mes</span><div class="chart-mode-toggle" id="toggle-weeklyMonthChart"><button onclick="switchMode('weeklyMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weeklyMonthChart',this,'actual')">Actual</button></div></div>
+    <div class="chart-wrap" style="height:200px"><canvas id="weeklyMonthChart"></canvas></div>
+  </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">11. Asistentes por mes</span><div class="chart-mode-toggle" id="toggle-monthPresChart"><button onclick="switchMode('monthPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPresChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPresChart"></canvas></div>
   </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">12. Entrevistas aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthEntChart"><button onclick="switchMode('monthEntChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthEntChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthEntChart"></canvas></div>
   </div>
+</div>
+<div style="margin-bottom:16px">
   <div class="card">
     <div class="card-title"><span class="title-text">13. Pruebas de manejo aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthPMChart"><button onclick="switchMode('monthPMChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPMChart',this,'actual')">Actual</button></div></div>
     <div class="chart-wrap" style="height:200px"><canvas id="monthPMChart"></canvas></div>
+  </div>
+</div>
+<div style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title"><span class="title-text">14. Contrataciones por mes</span><div class="chart-mode-toggle" id="toggle-contratacionesMonthChart"><button onclick="switchMode('contratacionesMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('contratacionesMonthChart',this,'actual')">Actual</button></div></div>
+    <div class="chart-wrap" style="height:200px"><canvas id="contratacionesMonthChart"></canvas></div>
   </div>
 </div>
 
