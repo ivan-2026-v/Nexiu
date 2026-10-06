@@ -61,15 +61,15 @@
     /* KPI CARDS */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 10px;
       margin-bottom: 24px;
     }
     .kpi-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 18px 16px;
+      padding: 12px 12px;
       position: relative;
       overflow: hidden;
     }
@@ -86,10 +86,10 @@
     .kpi-card.yellow::before { background: var(--warning); }
     .kpi-card.red::before { background: var(--danger); }
 
-    .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
-    .kpi-value { font-size: 30px; font-weight: 800; color: #fff; }
-    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
-    .kpi-trend { font-size: 12px; font-weight: 600; margin-top: 6px; }
+    .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+    .kpi-value { font-size: 22px; font-weight: 800; color: #fff; }
+    .kpi-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .kpi-trend { font-size: 11px; font-weight: 600; margin-top: 4px; }
     .trend-bad { color: var(--danger); }
     .trend-ok { color: var(--success); }
     .trend-warn { color: var(--warning); }
@@ -162,6 +162,7 @@
     }
     .chart-wrap {
       position: relative;
+      width: 100%;
     }
 
     /* FUNNEL */
@@ -1008,7 +1009,7 @@
         { label:'Aprobó prueba manejo',  data: convData.map(d=>d.pm),    borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
         { label:'Contratado',            data: convData.map(d=>d.cont),  borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
       ]},
-      options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true }
+      options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0} }, responsive:true, maintainAspectRatio:false }
     });
 
     // ── CHART 3: CONVERSION SOBRE PRESENTES ─────────────────────────
@@ -1035,7 +1036,7 @@
         { label:'Aprobó prueba de manejo',   data: convPresData.map(d=>d.pm),      borderColor:COLORS.yellow, backgroundColor:COLORS.yellow+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.yellow, tension:0.3, fill:false },
         { label:'Contratado',                data: convPresData.map(d=>d.cont),    borderColor:COLORS.indigo, backgroundColor:COLORS.indigo+'18', borderWidth:2.5, pointRadius:5, pointBackgroundColor:COLORS.indigo, tension:0.3, fill:false },
       ]},
-      options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0,max:100} }, responsive:true }
+      options: { plugins: { legend:{position:'bottom',labels:{padding:10,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}, datalabels:{display:false} }, scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0,max:100} }, responsive:true, maintainAspectRatio:false }
     });
 
     // ── CONTRATACIONES POR SEMANA ────────────────────────────────────
@@ -1228,7 +1229,7 @@
     };
 
     // Stacked bar factory — all labels via canvas, datalabels disabled
-    const stackedBar = (actualVals, base, maintainAspectRatio = true) => {
+    const stackedBar = (actualVals, base, maintainAspectRatio = false) => {
       const extraVals = extra(actualVals);
       const prevVals  = actualVals.map((v, i) => i > 0 ? actualVals[i-1] : null);
       return {
@@ -1317,7 +1318,7 @@
       ]},
       plugins: [ makeLabelsPlugin(firmaActual, firmaExtra, firmaPrev) ],
       options: {
-        responsive: true, maintainAspectRatio: true,
+        responsive: true, maintainAspectRatio: false,
         layout: { padding: { top: 28 } },
         plugins: {
           legend:     { display: false },
@@ -1348,7 +1349,7 @@
         tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}
       },
       scales:{x:{grid:{display:false}},y:{grid:{color:'#2e334d'},ticks:{callback:v=>v+'%'},min:0}},
-      responsive:true
+      responsive:true, maintainAspectRatio:false
     }});
   }
 
