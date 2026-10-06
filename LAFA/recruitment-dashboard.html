@@ -2218,25 +2218,35 @@
   }
 
   async function fetchAll() {
-    let all = [], from = 0;
     const PAGE = 1000;
-    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
-    while (true) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/funnel?select=*&offset=${from}&limit=${PAGE}`, { headers });
-      const data = await res.json();
-      if (!Array.isArray(data)) { console.error('Supabase error:', data); break; }
-      all = all.concat(data);
-      if (data.length < PAGE) break;
-      from += PAGE;
-    }
-    return all;
+    const COLS = 'id_candidato,candidato,canal,inicio,hora_llegada,asistencia,declina_oferta,razon_declina,entrevistador,entrevista_estandarizada,estado_entrevista,suma_bg,background_check,prueba_manejo,firma_contrato,status_driver,onboarding_dia,asistencia_onboarding,docs_y_didi,synced_at,periodo';
+    const BASE = `${SUPABASE_URL}/rest/v1/funnel?select=${COLS}&inicio=gte.2026-04-01&order=inicio.asc`;
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'count=exact' };
+
+    // First request: get total count + first page
+    const first = await fetch(`${BASE}&offset=0&limit=${PAGE}`, { headers });
+    const total = parseInt(first.headers.get('content-range')?.split('/')[1] || '0', 10);
+    const firstData = await first.json();
+    if (!Array.isArray(firstData)) { console.error('Supabase error:', firstData); return []; }
+
+    if (total <= PAGE) return firstData;
+
+    // Fire remaining pages in parallel
+    const pages = Math.ceil(total / PAGE);
+    const rest = await Promise.all(
+      Array.from({ length: pages - 1 }, (_, i) =>
+        fetch(`${BASE}&offset=${(i + 1) * PAGE}&limit=${PAGE}`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } })
+          .then(r => r.json())
+      )
+    );
+    return firstData.concat(...rest.filter(Array.isArray));
   }
 
   async function main() {
     const [rows, adsRows] = await Promise.all([fetchAll(), fetchAds()]);
     window._allRows = rows;
     window._adsRows = adsRows;
-    // Charts and all tabs show only Apr 1, 2026 onwards
+    // Server already filters to Apr 1+; keep client filter as safety net
     window._chartRows = rows.filter(r => (r.inicio || '') >= '2026-04-01');
 
     // Update header badge with date range
