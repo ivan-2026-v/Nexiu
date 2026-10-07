@@ -461,43 +461,36 @@
 <hr class="section-sep" />
 <div class="section-label">Visión mensual &nbsp;·&nbsp; <span id="monthly-proj-note" style="color:var(--accent);text-transform:none;letter-spacing:0;font-size:11px"></span></div>
 
-<div style="margin-bottom:16px">
+<div class="grid-2">
   <div class="card">
-    <div class="card-title"><span class="title-text">9. Tasas de conversión por mes</span><div class="chart-mode-toggle" id="toggle-conversionMonthChart"><button onclick="switchMode('conversionMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionMonthChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap" style="height:240px"><canvas id="conversionMonthChart"></canvas></div>
+  <div class="card-title"><span class="title-text">9. Tasas de conversión por mes</span><div class="chart-mode-toggle" id="toggle-conversionMonthChart"><button onclick="switchMode('conversionMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('conversionMonthChart',this,'actual')">Actual</button></div></div>
+  <div class="chart-wrap" style="height:240px"><canvas id="conversionMonthChart"></canvas></div>
+  </div>
+  <div class="card">
+  <div class="card-title"><span class="title-text">10. Candidatos captados por mes</span><div class="chart-mode-toggle" id="toggle-weeklyMonthChart"><button onclick="switchMode('weeklyMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weeklyMonthChart',this,'actual')">Actual</button></div></div>
+  <div class="chart-wrap" style="height:240px"><canvas id="weeklyMonthChart"></canvas></div>
   </div>
 </div>
-<div style="margin-bottom:16px">
+<div class="grid-2">
   <div class="card">
-    <div class="card-title"><span class="title-text">10. Candidatos captados por mes</span><div class="chart-mode-toggle" id="toggle-weeklyMonthChart"><button onclick="switchMode('weeklyMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('weeklyMonthChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap" style="height:200px"><canvas id="weeklyMonthChart"></canvas></div>
+  <div class="card-title"><span class="title-text">11. Asistentes por mes</span><div class="chart-mode-toggle" id="toggle-monthPresChart"><button onclick="switchMode('monthPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPresChart',this,'actual')">Actual</button></div></div>
+  <div class="chart-wrap" style="height:240px"><canvas id="monthPresChart"></canvas></div>
+  </div>
+  <div class="card">
+  <div class="card-title"><span class="title-text">12. Entrevistas aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthEntChart"><button onclick="switchMode('monthEntChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthEntChart',this,'actual')">Actual</button></div></div>
+  <div class="chart-wrap" style="height:240px"><canvas id="monthEntChart"></canvas></div>
   </div>
 </div>
-<div style="margin-bottom:16px">
+<div class="grid-2">
   <div class="card">
-    <div class="card-title"><span class="title-text">11. Asistentes por mes</span><div class="chart-mode-toggle" id="toggle-monthPresChart"><button onclick="switchMode('monthPresChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPresChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap" style="height:200px"><canvas id="monthPresChart"></canvas></div>
+  <div class="card-title"><span class="title-text">13. Pruebas de manejo aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthPMChart"><button onclick="switchMode('monthPMChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPMChart',this,'actual')">Actual</button></div></div>
+  <div class="chart-wrap" style="height:240px"><canvas id="monthPMChart"></canvas></div>
+  </div>
+  <div class="card">
+  <div class="card-title"><span class="title-text">14. Contrataciones por mes</span><div class="chart-mode-toggle" id="toggle-contratacionesMonthChart"><button onclick="switchMode('contratacionesMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('contratacionesMonthChart',this,'actual')">Actual</button></div></div>
+  <div class="chart-wrap" style="height:240px"><canvas id="contratacionesMonthChart"></canvas></div>
   </div>
 </div>
-<div style="margin-bottom:16px">
-  <div class="card">
-    <div class="card-title"><span class="title-text">12. Entrevistas aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthEntChart"><button onclick="switchMode('monthEntChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthEntChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap" style="height:200px"><canvas id="monthEntChart"></canvas></div>
-  </div>
-</div>
-<div style="margin-bottom:16px">
-  <div class="card">
-    <div class="card-title"><span class="title-text">13. Pruebas de manejo aprobadas por mes</span><div class="chart-mode-toggle" id="toggle-monthPMChart"><button onclick="switchMode('monthPMChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('monthPMChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap" style="height:200px"><canvas id="monthPMChart"></canvas></div>
-  </div>
-</div>
-<div style="margin-bottom:16px">
-  <div class="card">
-    <div class="card-title"><span class="title-text">14. Contrataciones por mes</span><div class="chart-mode-toggle" id="toggle-contratacionesMonthChart"><button onclick="switchMode('contratacionesMonthChart',this,'cohort')">Cohort</button><button class="active" onclick="switchMode('contratacionesMonthChart',this,'actual')">Actual</button></div></div>
-    <div class="chart-wrap" style="height:200px"><canvas id="contratacionesMonthChart"></canvas></div>
-  </div>
-</div>
-
 <!-- TIEMPO DE CONTRATACIÓN -->
 <hr class="section-sep" />
 <div class="section-label">Tiempo de contratación por cohort semanal</div>
