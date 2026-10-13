@@ -688,14 +688,27 @@
   const pct1 = (a, b) => b ? (a / b * 100).toFixed(1) : '0.0';
   const counter = (arr, fn) => arr.reduce((m, r) => { const k = fn(r) ?? 'null'; m[k] = (m[k]||0)+1; return m; }, {});
 
+  // Devuelve añoISO*100 + semana (ej. 202614 = S14 de 2026). Sigue siendo un
+  // número, así que los .sort((a,b)=>a-b) y las comparaciones por igualdad
+  // funcionan igual, pero la S1 de 2027 ya no se suma con la S1 de 2026.
+  // Para MOSTRARLO usar siempre semLabel(), nunca el valor crudo.
   function isoWeek(dateStr) {
     if (!dateStr) return null;
     const [y, mo, dy] = dateStr.slice(0,10).split('-').map(Number);
     const d = new Date(y, mo - 1, dy); // local date, no UTC shift
-    d.setDate(d.getDate() + 3 - (d.getDay()+6)%7);
+    d.setDate(d.getDate() + 3 - (d.getDay()+6)%7);  // jueves de esa semana ISO
     const w1 = new Date(d.getFullYear(), 0, 4);
-    return 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay()+6)%7) / 7);
+    const w = 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay()+6)%7) / 7);
+    return d.getFullYear() * 100 + w;  // el año del jueves ES el año ISO
   }
+
+  // Etiqueta de una clave de isoWeek(). Único lugar que conoce el *100.
+  function semLabel(w, fallback = '') {
+    return w ? `S${w % 100}` : fallback;
+  }
+
+  // Primera semana con datos de Meta: S15 de 2026 (S14 es parcial, se excluye).
+  const ADS_WEEK_MIN = 202615;
 
   function pmAprobado(pm) {
     return pm === 'Aprobado' || pm === 'Aprobó PM1' || pm === 'Aprobó PM2';
@@ -770,7 +783,7 @@
     const rows = window._chartRows || window._allRows || [];
     if (mode === 'week') {
       const weeks = [...new Set(rows.map(r => isoWeek(r.inicio)).filter(Boolean))].sort((a,b) => b-a);
-      sel.innerHTML = weeks.map(w => `<option value="${w}">Semana ${w}</option>`).join('');
+      sel.innerHTML = weeks.map(w => `<option value="${w}">Semana ${w % 100}</option>`).join('');
     } else {
       const monthName = m => {
         const [y, mo] = m.split('-');
@@ -929,7 +942,7 @@
       if (r.firma_contrato) wk.contrat++;
     });
     const actualPresWeeksSorted = Object.keys(actualPresOrder).map(Number).sort((a,b)=>a-b);
-    const actualPresLabels = actualPresWeeksSorted.map(w => `S${w}`);
+    const actualPresLabels = actualPresWeeksSorted.map(w => semLabel(w));
     const convPresActual = actualPresWeeksSorted.map(w => {
       const { presentes: p, aprobEnt, llegoPM, aprobPM, contrat } = actualPresOrder[w];
       const base = p || 1;
@@ -942,7 +955,7 @@
     ])].sort((a,b)=>a-b);
 
     const sortedWeeks = Object.keys(weekOrder).map(Number).sort((a,b)=>a-b);
-    const weekLabels = sortedWeeks.map(w => `S${w}`);
+    const weekLabels = sortedWeeks.map(w => semLabel(w));
     const weekTotal  = sortedWeeks.map(w => weekOrder[w].total);
     const weekPres   = sortedWeeks.map(w => weekOrder[w].presentes);
 
@@ -956,7 +969,7 @@
     const actualPresWeeks = [...new Set([...sortedWeeks, ...Object.keys(actualPresMap).map(Number)])].sort((a,b)=>a-b);
     _chartStore['weekPresChart'] = {
       cohort: { labels: weekLabels, datasets: [weekPres] },
-      actual: { labels: actualPresWeeks.map(w=>`S${w}`), datasets: [actualPresWeeks.map(w => actualPresMap[w] || 0)] }
+      actual: { labels: actualPresWeeks.map(w=>semLabel(w)), datasets: [actualPresWeeks.map(w => actualPresMap[w] || 0)] }
     };
     // weekEntChart, weekPMChart: cohort=actual (no separate result date)
     _chartStore['weekEntChart'] = {
@@ -1062,13 +1075,13 @@
     // Cohort: contratados agrupados por semana de inicio
     const cohortContratWeeks = sortedWeeks.filter(w => weekOrder[w].contrat > 0);
     _chartStore['contratacionesChart'] = {
-      cohort: { labels: sortedWeeks.map(w=>`S${w}`), datasets: [sortedWeeks.map(w=>weekOrder[w].contrat)] },
-      actual: { labels: firmaWeeks.map(w=>`S${w}`),  datasets: [firmaVals] }
+      cohort: { labels: sortedWeeks.map(w=>semLabel(w)), datasets: [sortedWeeks.map(w=>weekOrder[w].contrat)] },
+      actual: { labels: firmaWeeks.map(w=>semLabel(w)),  datasets: [firmaVals] }
     };
 
     makeChart('contratacionesChart', {
       type: 'bar',
-      data: { labels: firmaWeeks.map(w=>`S${w}`), datasets:[{
+      data: { labels: firmaWeeks.map(w=>semLabel(w)), datasets:[{
         label: 'Contratos firmados',
         data: firmaVals,
         backgroundColor: COLORS.green+'bb', borderColor: COLORS.green, borderWidth:1, borderRadius:4
@@ -1116,7 +1129,7 @@
     const avgEl = document.getElementById('hire-avg-global');
     if (avgEl && globalAvg) avgEl.textContent = `Promedio global: ${globalAvg} días · ${allDays.length} contratos`;
 
-    const tthLabels = cohortWeeks.map(w=>`S${w}`);
+    const tthLabels = cohortWeeks.map(w=>semLabel(w));
 
     // Canvas plugin: "Xd" above bar + "n=X" inside bar
     const tthPlugin = {
@@ -1496,7 +1509,7 @@
     makeChart('pipelineEvolChart', {
       type: 'bar',
       data: {
-        labels: chartWeeks.map(w => `S${w}`),
+        labels: chartWeeks.map(w => semLabel(w)),
         datasets: STAGES.map((stage, i) => ({
           label: stage,
           data: chartWeeks.map(w => weekMap[w][stage] || 0),
@@ -1544,7 +1557,7 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr>
           ${th('Etapa', 'text-align:left')}
-          ${pivotWeeks.map(w => th(`S${w}`, 'text-align:center')).join('')}
+          ${pivotWeeks.map(w => th(semLabel(w), 'text-align:center')).join('')}
           ${th('Total', 'text-align:center;background:var(--surface2)')}
         </tr></thead>
         <tbody>
@@ -1572,7 +1585,7 @@
       const color = colorMap[stage];
       return `<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:8px 12px;font-weight:600;white-space:nowrap">${r.candidato || '—'}</td>
-        <td style="padding:8px 12px;color:var(--muted)">S${isoWeek(r.inicio) || '?'}</td>
+        <td style="padding:8px 12px;color:var(--muted)">${semLabel(isoWeek(r.inicio), '?')}</td>
         <td style="padding:8px 12px;color:var(--muted)">${r.hora_llegada || '—'}</td>
         <td style="padding:8px 12px"><span style="background:${color}22;color:${color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${stage}</span></td>
       </tr>`;
@@ -1580,7 +1593,7 @@
 
     window._pipelineRows = sorted.map(r => ({
       Candidato:            r.candidato || '',
-      Semana:               `S${isoWeek(r.inicio) || ''}`,
+      Semana:               semLabel(isoWeek(r.inicio)),
       Fecha_inicio:         r.hora_llegada || '',
       Etapa:                getPipelineStage(r),
       Estado_entrevista:    r.estado_entrevista || '',
@@ -1713,7 +1726,7 @@
     makeChart('wtdChart', {
       type: 'bar',
       data: {
-        labels: weeksForChart.map(w => `S${w}`),
+        labels: weeksForChart.map(w => semLabel(w)),
         datasets: [
           {
             label: `Presentes acum. (${dowLabel})`,
@@ -1848,7 +1861,7 @@
           const wRate = wSched ? Math.round(wPres / wSched * 100) : 0;
           html += `<div style="margin-bottom:20px">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent2);margin-bottom:8px">
-              S${w} &nbsp;·&nbsp; ${wDates[0]?.slice(5).replace('-','/')} – ${wDates[4]?.slice(5).replace('-','/')}
+              ${semLabel(w)} &nbsp;·&nbsp; ${wDates[0]?.slice(5).replace('-','/')} – ${wDates[4]?.slice(5).replace('-','/')}
             </div>
             <table class="week-table">
               <thead><tr><th>Día</th><th>Fecha</th><th>Prog.</th><th>Pres.</th><th>No-show</th><th>Tasa</th></tr></thead>
@@ -1910,7 +1923,7 @@
       <table class="week-table">
         <thead><tr>
           <th style="text-align:left">Día</th>
-          ${compWeeks.map(w => `<th style="text-align:center">S${w}</th>`).join('')}
+          ${compWeeks.map(w => `<th style="text-align:center">${semLabel(w)}</th>`).join('')}
         </tr></thead>
         <tbody>`;
     for (let dow = 0; dow < 5; dow++) {
@@ -1958,7 +1971,7 @@
     // ── BACKUP LIST ──
     const chipsEl = document.getElementById('backup-chips');
     chipsEl.innerHTML = allWeeks.map((w, i) =>
-      `<span class="week-chip${i === allWeeks.length-1 ? ' active' : ''}" onclick="selectBackupWeek(${w},this)">S${w}</span>`
+      `<span class="week-chip${i === allWeeks.length-1 ? ' active' : ''}" onclick="selectBackupWeek(${w},this)">${semLabel(w)}</span>`
     ).join('');
     renderBackupList(allWeeks[allWeeks.length-1]);
   }
@@ -1969,7 +1982,7 @@
     const presentes = days.flatMap(d => (presentesByDay[d]?.rows || []))
       .sort((a,b) => ((a.hora_llegada||a.inicio||'')).localeCompare((b.hora_llegada||b.inicio||'')));
     const tbody = document.getElementById('backup-body');
-    document.getElementById('backup-count').textContent = `${presentes.length} presentes en semana ${week}`;
+    document.getElementById('backup-count').textContent = `${presentes.length} presentes en semana ${week % 100}`;
     tbody.innerHTML = presentes.length ? presentes.map((r, i) => {
       const fecha = (r.hora_llegada || r.inicio || '').slice(5).replace('-','/');
       const est = r.estado_entrevista || '—';
@@ -2075,8 +2088,8 @@
     });
 
     // Shared weeks (have ads data), sorted
-    const adsSortedWeeks = Object.keys(wkAds).map(Number).sort((a,b)=>a-b).filter(w => w >= 15);
-    const wkLabels = adsSortedWeeks.map(w => `S${w}`);
+    const adsSortedWeeks = Object.keys(wkAds).map(Number).sort((a,b)=>a-b).filter(w => w >= ADS_WEEK_MIN);
+    const wkLabels = adsSortedWeeks.map(w => semLabel(w));
     const wkSpend  = adsSortedWeeks.map(w => wkAds[w] || 0);
 
     // $/candidato metrics per week (null if no funnel data)
